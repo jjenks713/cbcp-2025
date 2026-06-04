@@ -5,12 +5,7 @@ import { Stack } from "@mui/material";
 
 const Layout = () => {
     return (
-        <Stack minHeight="100vh" style={{
-        height: '100vh',
-        backgroundImage: `url(${require('../skull-study.jpg')})`,
-        backgroundSize: 'cover',
-        backgroundPosition: 'center',
-    }}>
+        <Stack minHeight="100vh" sx={{ bgcolor: 'secondary.main' }}>
             <Navigation />
             <Outlet />
         </Stack>
