@@ -50,7 +50,7 @@ function ArtistCard() {
     <Stack sx={{ color: 'common.white' }}>
       <Box sx={{ borderRadius: 2, overflow: 'hidden' }}>
         <Image
-          src="/assets/images/portrait/portrait_1.jpg"
+          src="/assets/images/portrait/artist_photo.jpg"
           alt="Mary Jenkin"
           ratio="3/4"
         />
