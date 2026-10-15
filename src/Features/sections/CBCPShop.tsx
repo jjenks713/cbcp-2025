@@ -8,10 +8,12 @@ import Typography from '@mui/material/Typography';
 import Iconify from '../../components/iconify';
 import TextMaxLine from '../../components/text-max-line';
 import { RouterLink } from '../../components/RouterLink';
+import { useContentfulList } from '../../hooks/useContentfulData';
+import { getShopItems } from '../../lib/contentful';
 
 const COLORS = ['primary', 'secondary', 'success', 'warning'] as const;
 
-const PRODUCTS = [
+const FALLBACK_PRODUCTS = [
   {
     name: 'Custom Prints',
     icon: 'carbon:image-copy',
@@ -39,6 +41,8 @@ const PRODUCTS = [
 ];
 
 export default function CBCPShop() {
+  const PRODUCTS = useContentfulList(getShopItems, FALLBACK_PRODUCTS);
+
   return (
     <Container sx={{ py: { xs: 5, md: 10 } }}>
       <Stack
@@ -82,8 +86,9 @@ export default function CBCPShop() {
   );
 }
 
-function ShopCard({ product, index }: { product: typeof PRODUCTS[number]; index: number }) {
+function ShopCard({ product, index }: { product: typeof FALLBACK_PRODUCTS[number]; index: number }) {
   const { name, icon, content, path } = product;
+  const color = COLORS[index % COLORS.length];
 
   return (
     <Card
@@ -101,7 +106,7 @@ function ShopCard({ product, index }: { product: typeof PRODUCTS[number]; index:
       <Iconify
         icon={icon}
         width={88}
-        sx={{ mx: 'auto', color: (theme) => theme.palette[COLORS[index]].main }}
+        sx={{ mx: 'auto', color: (theme) => theme.palette[color].main }}
       />
 
       <Stack spacing={1} sx={{ my: 5 }}>

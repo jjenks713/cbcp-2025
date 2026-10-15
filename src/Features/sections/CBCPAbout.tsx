@@ -9,26 +9,39 @@ import Image from '../../components/image';
 import Iconify from '../../components/iconify';
 import { fShortenNumber } from '../../utils/format-number';
 import { RouterLink } from '../../components/RouterLink';
+import { useContentfulSingle } from '../../hooks/useContentfulData';
+import { getArtist, type ArtistProfile } from '../../lib/contentful';
 
-const STATS = [
-  {
-    label: 'Pieces Sold',
-    total: 500,
-    content: 'Original works, prints, stickers and merch shipped to collectors worldwide.',
-  },
-  {
-    label: 'Followers',
-    total: 12000,
-    content: 'A growing community of fans who love the strange and the beautifully unsettling.',
-  },
-  {
-    label: 'Years Creating',
-    total: 10,
-    content: 'A decade of honing a singular artistic voice that blends cute with creepy.',
-  },
-];
+const FALLBACK_ARTIST: ArtistProfile = {
+  name: 'Mary Jenkin',
+  role: 'Creator',
+  bio: "Creepy But Cute Press is the creative outlet of Mary Jenkin — an artist drawn to the peculiar, the strange, and the beautifully unsettling. From creepy-styled fan art to wholly original pieces, every work is designed to make you look twice. Expect characters that haunt your dreams in the best possible way — weird, wonderful, and unlike anything else you'll find.",
+  piecesSold: 500,
+  followers: 12000,
+  yearsCreating: 10,
+};
 
 export default function CBCPAbout() {
+  const artist = useContentfulSingle(getArtist, FALLBACK_ARTIST);
+
+  const STATS = [
+    {
+      label: 'Pieces Sold',
+      total: artist.piecesSold,
+      content: 'Original works, prints, stickers and merch shipped to collectors worldwide.',
+    },
+    {
+      label: 'Followers',
+      total: artist.followers,
+      content: 'A growing community of fans who love the strange and the beautifully unsettling.',
+    },
+    {
+      label: 'Years Creating',
+      total: artist.yearsCreating,
+      content: 'A decade of honing a singular artistic voice that blends cute with creepy.',
+    },
+  ];
+
   return (
     <Container sx={{ py: { xs: 5, md: 10 } }}>
       <Image
@@ -56,13 +69,7 @@ export default function CBCPAbout() {
             The Mind Behind the Madness
           </Typography>
 
-          <Typography sx={{ color: 'text.secondary' }}>
-            Creepy But Cute Press is the creative outlet of Mary Jenkin — an artist drawn to the
-            peculiar, the strange, and the beautifully unsettling. From creepy-styled fan art to
-            wholly original pieces, every work is designed to make you look twice. Expect characters
-            that haunt your dreams in the best possible way — weird, wonderful, and unlike anything
-            else you'll find.
-          </Typography>
+          <Typography sx={{ color: 'text.secondary' }}>{artist.bio}</Typography>
 
           <Button
             component={RouterLink}

@@ -1,5 +1,4 @@
 import Box from '@mui/material/Box';
-import Link from '@mui/material/Link';
 import Stack from '@mui/material/Stack';
 import Button from '@mui/material/Button';
 import Container from '@mui/material/Container';
@@ -10,17 +9,14 @@ import { RouterLink } from '../../components/RouterLink';
 import Carousel, { useCarousel, CarouselDots, CarouselArrows } from '../../components/carousel';
 import { useTheme } from '@mui/material/styles';
 import { useResponsive } from '../../hooks/use-responsive';
-
-const ART_ITEMS = [
-  { id: '1', title: 'Haunted Harvest', category: 'Painting', coverUrl: '/assets/images/marketing/marketing_7.jpg' },
-  { id: '2', title: 'Eerie Bloom', category: 'Screen Printing', coverUrl: '/assets/images/marketing/marketing_8.jpg' },
-  { id: '3', title: 'Peculiar Dreams', category: 'Drawing', coverUrl: '/assets/images/marketing/marketing_9.jpg' },
-  { id: '4', title: 'Hollow Hearts', category: 'Sticker Making', coverUrl: '/assets/images/marketing/marketing_10.jpg' },
-];
+import { useContentfulList } from '../../hooks/useContentfulData';
+import { getArtworks, type ArtItem as ArtItemData } from '../../lib/contentful';
+import { galleryPieceHref } from '../../lib/galleryLink';
 
 export default function CBCPLatestArt() {
   const theme = useTheme();
   const mdUp = useResponsive('up', 'md');
+  const ART_ITEMS = useContentfulList(() => getArtworks({ featuredOnly: true }), [] as ArtItemData[]);
 
   const carousel = useCarousel({
     slidesToShow: 3,
@@ -41,6 +37,10 @@ export default function CBCPLatestArt() {
       View Gallery
     </Button>
   );
+
+  // Still loading (or nothing has been marked featured in Contentful yet) —
+  // skip rendering an empty carousel under the heading.
+  if (ART_ITEMS.length === 0) return null;
 
   return (
     <Container sx={{ py: { xs: 8, md: 15 } }}>
@@ -84,10 +84,13 @@ export default function CBCPLatestArt() {
   );
 }
 
-function ArtItem({ item }: { item: typeof ART_ITEMS[number] }) {
+function ArtItem({ item }: { item: ArtItemData }) {
   return (
     <Box
+      component={RouterLink}
+      href={galleryPieceHref(item.id)}
       sx={{
+        display: 'block',
         borderRadius: 2,
         overflow: 'hidden',
         position: 'relative',
@@ -138,9 +141,9 @@ function ArtItem({ item }: { item: typeof ART_ITEMS[number] }) {
         <Typography variant="overline" sx={{ opacity: 0.72, lineHeight: 1.5 }}>
           {item.category}
         </Typography>
-        <Link component={RouterLink} href="/gallery" variant="h5" color="inherit" underline="hover">
+        <Typography variant="h5" sx={{ color: 'inherit' }}>
           {item.title}
-        </Link>
+        </Typography>
       </Stack>
     </Box>
   );

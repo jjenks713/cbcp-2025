@@ -11,8 +11,10 @@ import AccordionSummary, { accordionSummaryClasses } from '@mui/material/Accordi
 import Image from '../../components/image';
 import Iconify from '../../components/iconify';
 import { useResponsive } from '../../hooks/use-responsive';
+import { useContentfulList } from '../../hooks/useContentfulData';
+import { getFaqs } from '../../lib/contentful';
 
-const FAQS = [
+const FALLBACK_FAQS = [
   {
     id: '1',
     question: 'Can I order a custom piece?',
@@ -47,6 +49,7 @@ const FAQS = [
 
 export default function CBCPFaqs() {
   const mdUp = useResponsive('up', 'md');
+  const FAQS = useContentfulList(getFaqs, FALLBACK_FAQS);
   const [expanded, setExpanded] = useState<string | false>(false);
 
   const handleChange = useCallback(

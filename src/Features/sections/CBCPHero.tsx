@@ -17,21 +17,36 @@ export default function CBCPHero() {
   const mdUp = useResponsive('up', 'md');
 
   return (
-    <Box
-      sx={{
-        ...bgGradient({
-          color: alpha(theme.palette.background.default, 0.9),
-          imgUrl: '/assets/background/skull-study.jpg',
-        }),
-        overflow: 'hidden',
-      }}
-    >
+    <Box sx={{ position: 'relative', overflow: 'hidden' }}>
+      {/*
+        Background photo lives in its own absolutely-positioned layer so the
+        zoom (transform: scale) never touches the text/buttons. bgGradient()
+        uses `background-size: cover` by default, which — unlike a fixed
+        percentage — always fully fills the box no matter its aspect ratio,
+        so this can't end up looking small/uncovered on mobile's much
+        shorter, narrower hero area the way a percentage size could.
+        transform: scale() zooms in while preserving that full coverage.
+      */}
+      <Box
+        aria-hidden
+        sx={{
+          position: 'absolute',
+          inset: 0,
+          ...bgGradient({
+            color: alpha(theme.palette.background.default, 0.9),
+            imgUrl: '/assets/background/human-nature.jpg',
+          }),
+          transform: 'scale(1.3)',
+        }}
+      />
+
       <Container
         sx={{
+          position: 'relative',
           py: 15,
           display: { md: 'flex' },
           alignItems: { md: 'center' },
-          height: { md: '100vh' },
+          minHeight: { xs: '70vh', md: '100vh' },
         }}
       >
         <Box
@@ -84,7 +99,7 @@ export default function CBCPHero() {
                 href="/gallery"
                 direction="row"
                 alignItems="center"
-                sx={{ typography: 'h6', textDecoration: 'none', color: 'inherit' }}
+                sx={{ typography: 'h6', textDecoration: 'none', color: 'common.white' }}
               >
                 <Fab size="medium" sx={{ mr: 1, flexShrink: 0 }}>
                   <Iconify width={24} icon="carbon:play" />
