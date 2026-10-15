@@ -16,6 +16,7 @@
     "@types/node": "^16.18.126",
     "@types/react": "^19.1.13",
     "@types/react-dom": "^19.1.9",
+    "contentful": "^11.12.10",
     "framer-motion": "^12.40.0",
     "react": "^19.1.1",
     "react-dom": "^19.1.1",
@@ -56,6 +57,8 @@
     "@types/react-helmet": "^6.1.11",
     "@types/react-lazy-load-image-component": "^1.6.5",
     "@types/react-slick": "^0.23.13",
-    "cross-env": "^10.1.0"
+    "contentful-management": "^12.19.2",
+    "cross-env": "^10.1.0",
+    "dotenv": "^18.0.8"
   }
 }

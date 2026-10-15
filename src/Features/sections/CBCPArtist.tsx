@@ -6,9 +6,22 @@ import { alpha, useTheme } from '@mui/material/styles';
 
 import Image from '../../components/image';
 import { bgGradient } from '../../Theme/css';
+import { useContentfulSingle } from '../../hooks/useContentfulData';
+import { getArtist, type ArtistProfile } from '../../lib/contentful';
+
+const FALLBACK_ARTIST: ArtistProfile = {
+  name: 'Mary Jenkin',
+  role: 'Creator',
+  photoUrl: '/assets/images/portrait/artist_photo.jpg',
+  bio: '',
+  piecesSold: 0,
+  followers: 0,
+  yearsCreating: 0,
+};
 
 export default function CBCPArtist() {
   const theme = useTheme();
+  const artist = useContentfulSingle(getArtist, FALLBACK_ARTIST);
 
   return (
     <Box
@@ -37,7 +50,7 @@ export default function CBCPArtist() {
 
         <Stack alignItems="center">
           <Box sx={{ width: { xs: '80%', sm: '40%', md: '25%' } }}>
-            <ArtistCard />
+            <ArtistCard artist={artist} />
           </Box>
         </Stack>
       </Container>
@@ -45,21 +58,21 @@ export default function CBCPArtist() {
   );
 }
 
-function ArtistCard() {
+function ArtistCard({ artist }: { artist: ArtistProfile }) {
   return (
     <Stack sx={{ color: 'common.white' }}>
       <Box sx={{ borderRadius: 2, overflow: 'hidden' }}>
         <Image
-          src="/assets/images/portrait/artist_photo.jpg"
-          alt="Mary Jenkin"
+          src={artist.photoUrl || '/assets/images/portrait/artist_photo.jpg'}
+          alt={artist.name}
           ratio="3/4"
         />
       </Box>
 
       <Stack spacing={0.5} sx={{ mt: 2.5, textAlign: 'center' }}>
-        <Typography variant="h6">Mary Jenkin</Typography>
+        <Typography variant="h6">{artist.name}</Typography>
         <Typography variant="body2" sx={{ color: 'grey.400' }}>
-          Creator
+          {artist.role}
         </Typography>
       </Stack>
     </Stack>

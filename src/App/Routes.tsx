@@ -3,6 +3,7 @@ import { useRoutes } from "react-router-dom";
 import Layout from "./Layout";
 import Main from "../Features/Main";
 import About from "../Features/About";
+import Gallery from "../Features/Gallery";
 
 const routes = [
     {
@@ -16,6 +17,10 @@ const routes = [
             {
                 path: "about",
                 element: <About />,
+            },
+            {
+                path: "gallery",
+                element: <Gallery />,
             }
         ],
     }

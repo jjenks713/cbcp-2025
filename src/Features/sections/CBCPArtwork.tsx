@@ -16,26 +16,20 @@ import TextMaxLine from '../../components/text-max-line';
 import { RouterLink } from '../../components/RouterLink';
 import { varHover, varTranHover } from '../../components/animate';
 import { useResponsive } from '../../hooks/use-responsive';
-
-type ArtItem = {
-  id: string;
-  title: string;
-  category: string;
-  description: string;
-  coverUrl: string;
-};
-
-const ART_ITEMS: ArtItem[] = [
-  { id: '1', title: 'Midnight Garden', category: 'Screen Printing', description: 'A hauntingly lush garden scene hand-pulled in three colors on 100lb paper.', coverUrl: '/assets/images/marketing/marketing_1.jpg' },
-  { id: '2', title: 'Sweet Nightmares', category: 'Painting', description: 'Original acrylic piece exploring the boundary between comfort and dread.', coverUrl: '/assets/images/marketing/marketing_2.jpg' },
-  { id: '3', title: 'Cursed Cutie', category: 'Drawing', description: 'Detailed ink illustration — a familiar face made beautifully strange.', coverUrl: '/assets/images/marketing/marketing_3.jpg' },
-  { id: '4', title: 'Ghoulish Garden', category: 'Sticker Making', description: 'A full sticker sheet of garden creatures with an unsettling twist.', coverUrl: '/assets/images/marketing/marketing_4.jpg' },
-  { id: '5', title: 'Hollow Haze', category: 'Painting', description: 'Soft edges and deep shadows in this moody mixed-media original.', coverUrl: '/assets/images/marketing/marketing_5.jpg' },
-  { id: '6', title: 'Wicked Whimsy', category: 'Screen Printing', description: 'Limited-edition two-color print — only 50 in existence.', coverUrl: '/assets/images/marketing/marketing_6.jpg' },
-];
+import { useContentfulList } from '../../hooks/useContentfulData';
+import { getArtworks, type ArtItem } from '../../lib/contentful';
+import { galleryPieceHref } from '../../lib/galleryLink';
 
 export default function CBCPArtwork() {
   const mdUp = useResponsive('up', 'md');
+  // This mosaic layout indexes ART_ITEMS[0..5] directly, so only render
+  // once there are enough Contentful entries to fill all six slots.
+  const ART_ITEMS = useContentfulList(async () => {
+    const items = await getArtworks();
+    return items.length >= 6 ? items : [];
+  }, [] as ArtItem[]);
+
+  if (ART_ITEMS.length < 6) return null;
 
   return (
     <Container sx={{ overflow: 'hidden', pt: { xs: 5, md: 10 }, pb: 10 }}>
@@ -81,7 +75,7 @@ export default function CBCPArtwork() {
           component={RouterLink}
           href="/gallery"
           size="large"
-          color="inherit"
+          sx={{ color: 'common.white' }}
           endIcon={<Iconify icon="carbon:chevron-right" />}
         >
           View All
@@ -112,7 +106,7 @@ function LargeItem({ item }: { item: ArtItem }) {
         </div>
         <Button
           component={RouterLink}
-          href="/gallery"
+          href={galleryPieceHref(item.id)}
           size="small"
           color="inherit"
           endIcon={<Iconify icon="carbon:chevron-right" />}
@@ -129,7 +123,7 @@ function SmallItem({ item, square }: { item: ArtItem; square?: boolean }) {
   const mdUp = useResponsive('up', 'md');
 
   return (
-    <Link component={RouterLink} href="/gallery">
+    <Link component={RouterLink} href={galleryPieceHref(item.id)}>
       <Paper
         component={m.div}
         whileHover="hover"

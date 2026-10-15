@@ -39,6 +39,10 @@ export default function CBCPTestimonials() {
     autoplaySpeed: 5000,
     slidesToShow: 1,
     slidesToScroll: 1,
+    // Testimonial content is much taller stacked in a column (mobile) than
+    // side-by-side (desktop) — without this the slide track keeps the
+    // shorter desktop-measured height and clips/overlaps the mobile layout.
+    adaptiveHeight: true,
     ...CarouselDots({ sx: { mt: { xs: 8, md: 10 } } }),
   });
 
@@ -58,7 +62,7 @@ export default function CBCPTestimonials() {
           leftButtonProps={{ sx: { opacity: { xs: 0, md: 1 } } }}
           rightButtonProps={{ sx: { opacity: { xs: 0, md: 1 } } }}
         >
-          <Box sx={{ maxWidth: 800, mx: 'auto' }}>
+          <Box sx={{ width: 1, maxWidth: 800, mx: 'auto' }}>
             <Carousel ref={carousel.carouselRef} {...carousel.carouselSettings}>
               {TESTIMONIALS.map((t) => (
                 <TestimonialItem key={t.id} testimonial={t} />
