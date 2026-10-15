@@ -11,6 +11,7 @@ import Iconify from '../../components/iconify';
 import { bgGradient } from '../../Theme/css';
 import { useResponsive } from '../../hooks/use-responsive';
 import { RouterLink } from '../../components/RouterLink';
+import { ETSY_SHOP_URL } from '../../lib/links';
 
 export default function CBCPHero() {
   const theme = useTheme();
@@ -84,12 +85,16 @@ export default function CBCPHero() {
               justifyContent={{ xs: 'center', md: 'unset' }}
               sx={{ mt: 5 }}
             >
+              {/* In-app shop isn't built yet — every shop link goes to Etsy for now. */}
               <Button
-                component={RouterLink}
-                href="/shop"
+                component="a"
+                href={ETSY_SHOP_URL}
+                target="_blank"
+                rel="noopener"
                 variant="contained"
                 color="inherit"
                 size="large"
+                sx={{ color: 'grey.900' }}
               >
                 Shop Now
               </Button>
@@ -115,7 +120,7 @@ export default function CBCPHero() {
                 visibleByDefault
                 disabledEffect
                 alt="Creepy But Cute Press art"
-                src="/assets/illustrations/skull.jpg"
+                src="/assets/background/human-nature.jpg"
               />
             </Box>
           )}

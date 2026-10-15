@@ -1,16 +1,15 @@
 import { useEffect, useState } from 'react';
+import { AnimatePresence, motion } from 'framer-motion';
 
 import Box from '@mui/material/Box';
 import Chip from '@mui/material/Chip';
 import Stack from '@mui/material/Stack';
-import Dialog from '@mui/material/Dialog';
 import Divider from '@mui/material/Divider';
 import IconButton from '@mui/material/IconButton';
 import Typography from '@mui/material/Typography';
 
-import Image from '../image';
 import Iconify from '../iconify';
-import { useResponsive } from '../../hooks/use-responsive';
+import ArtworkModalCarousel from './artwork-modal-carousel';
 import { type ArtItem } from '../../lib/contentful';
 
 type Props = {
@@ -20,109 +19,159 @@ type Props = {
 };
 
 export default function ArtworkModal({ item, open, onClose }: Props) {
-  const mdUp = useResponsive('up', 'md');
-  const [activeIndex, setActiveIndex] = useState(0);
+  // `item` goes null the instant `open` does (the URL param clears
+  // immediately on close), which would blank the content mid-exit — so we
+  // keep showing the last real item while the exit animation plays.
+  const [displayedItem, setDisplayedItem] = useState<ArtItem | null>(item);
 
-  // Reset to the cover image whenever a different piece is opened.
   useEffect(() => {
-    setActiveIndex(0);
-  }, [item?.id]);
+    if (item) setDisplayedItem(item);
+  }, [item]);
 
-  if (!item) return null;
+  useEffect(() => {
+    if (!open) return;
+    const previousOverflow = document.body.style.overflow;
+    document.body.style.overflow = 'hidden';
+    const handleKey = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') onClose();
+    };
+    window.addEventListener('keydown', handleKey);
+    return () => {
+      document.body.style.overflow = previousOverflow;
+      window.removeEventListener('keydown', handleKey);
+    };
+  }, [open, onClose]);
 
-  const images = item.imageUrls && item.imageUrls.length > 0 ? item.imageUrls : [item.coverUrl];
-  const details = [
-    { label: 'Medium', value: item.medium },
-    { label: 'Size', value: item.size },
-    { label: 'Edition', value: item.edition },
-  ].filter((row) => row.value);
+  const show = open && !!displayedItem;
+  const images = displayedItem
+    ? displayedItem.imageUrls && displayedItem.imageUrls.length > 0
+      ? displayedItem.imageUrls
+      : [displayedItem.coverUrl]
+    : [];
+  const details = displayedItem
+    ? [
+        { label: 'Medium', value: displayedItem.medium },
+        { label: 'Size', value: displayedItem.size },
+        { label: 'Edition', value: displayedItem.edition },
+      ].filter((row) => row.value)
+    : [];
 
   return (
-    <Dialog
-      open={open}
-      onClose={onClose}
-      maxWidth="md"
-      fullWidth
-      fullScreen={!mdUp}
-      PaperProps={{ sx: { bgcolor: 'secondary.main', borderRadius: { md: 2 } } }}
-    >
-      <IconButton
-        onClick={onClose}
-        sx={{
-          position: 'absolute',
-          right: 12,
-          top: 12,
-          zIndex: 9,
-          color: 'common.white',
-          bgcolor: (theme) => `${theme.palette.grey[900]}80`,
-          '&:hover': { bgcolor: (theme) => `${theme.palette.grey[900]}B0` },
-        }}
-      >
-        <Iconify icon="carbon:close" />
-      </IconButton>
+    <AnimatePresence>
+      {show && displayedItem && (
+        <>
+          <motion.div
+            key={`backdrop-${displayedItem.id}`}
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            onClick={onClose}
+            style={{
+              position: 'fixed',
+              inset: 0,
+              zIndex: 1300,
+              background: 'rgba(0, 0, 0, 0.72)',
+            }}
+          />
 
-      <Box sx={{ display: { md: 'flex' } }}>
-        <Box sx={{ width: { md: '55%' }, flexShrink: 0, bgcolor: 'common.black' }}>
-          <Image alt={item.title} src={images[activeIndex]} ratio="1/1" />
+          <Box
+            // Keyed per-item (along with the backdrop above) so closing one
+            // piece and opening a different one is a real unmount + mount
+            // in AnimatePresence's eyes — without this, switching items
+            // just updates `layoutId` on the same persisting instance, and
+            // Framer Motion keeps animating from the *previous* item's
+            // thumbnail instead of the new one's.
+            key={displayedItem.id}
+            sx={{
+              position: 'fixed',
+              inset: 0,
+              zIndex: 1301,
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              p: { xs: 0, md: 3 },
+              pointerEvents: 'none',
+            }}
+          >
+            {/*
+              Sharing this layoutId with the clicked thumbnail (see
+              GalleryItem in Gallery.tsx) is what makes the modal grow open
+              from the image instead of just fading/scaling in from the
+              center — Framer Motion animates between the two elements'
+              actual on-screen rects automatically.
+            */}
+            <Box
+              component={motion.div}
+              layoutId={`artwork-${displayedItem.id}`}
+              onClick={(e) => e.stopPropagation()}
+              sx={{
+                position: 'relative',
+                pointerEvents: 'auto',
+                // A fixed desktop width (not "auto") is required here — the
+                // image/info children below split 55%/45%, and percentage
+                // widths can't resolve against a shrink-to-fit flex parent.
+                width: { xs: 1, md: 900 },
+                height: { xs: 1, md: 'auto' },
+                maxWidth: { md: 'calc(100vw - 48px)' },
+                maxHeight: { xs: 1, md: '85vh' },
+                overflow: 'auto',
+                bgcolor: 'secondary.main',
+                borderRadius: { xs: 0, md: 2 },
+                display: { md: 'flex' },
+              }}
+            >
+              <IconButton
+                onClick={onClose}
+                sx={{
+                  position: 'absolute',
+                  right: 12,
+                  top: 12,
+                  zIndex: 9,
+                  color: 'common.white',
+                  bgcolor: (theme) => `${theme.palette.grey[900]}80`,
+                  '&:hover': { bgcolor: (theme) => `${theme.palette.grey[900]}B0` },
+                }}
+              >
+                <Iconify icon="carbon:close" />
+              </IconButton>
 
-          {images.length > 1 && (
-            <Stack direction="row" spacing={1} sx={{ p: 1.5, overflowX: 'auto' }}>
-              {images.map((src, index) => (
-                <Box
-                  key={src}
-                  onClick={() => setActiveIndex(index)}
-                  sx={{
-                    width: 56,
-                    height: 56,
-                    flexShrink: 0,
-                    borderRadius: 1,
-                    overflow: 'hidden',
-                    cursor: 'pointer',
-                    opacity: index === activeIndex ? 1 : 0.5,
-                    border: '2px solid',
-                    borderColor: index === activeIndex ? 'primary.main' : 'transparent',
-                    transition: 'opacity 0.2s ease',
-                  }}
-                >
-                  <Image alt={`${item.title} ${index + 1}`} src={src} ratio="1/1" />
-                </Box>
-              ))}
-            </Stack>
-          )}
-        </Box>
+              <ArtworkModalCarousel title={displayedItem.title} images={images} />
 
-        <Stack spacing={2} sx={{ width: { md: '45%' }, p: { xs: 3, md: 4 } }}>
-          {item.categories && item.categories.length > 0 && (
-            <Stack direction="row" spacing={1} flexWrap="wrap" useFlexGap>
-              {item.categories.map((cat) => (
-                <Chip key={cat} label={cat} size="small" color="primary" variant="outlined" />
-              ))}
-            </Stack>
-          )}
-
-          <Typography variant="h4">{item.title}</Typography>
-
-          {item.description && (
-            <Typography sx={{ color: 'text.secondary' }}>{item.description}</Typography>
-          )}
-
-          {details.length > 0 && (
-            <>
-              <Divider sx={{ borderStyle: 'dashed' }} />
-              <Stack spacing={1}>
-                {details.map((row) => (
-                  <Stack key={row.label} direction="row" justifyContent="space-between">
-                    <Typography variant="body2" sx={{ color: 'text.disabled' }}>
-                      {row.label}
-                    </Typography>
-                    <Typography variant="body2">{row.value}</Typography>
+              <Stack spacing={2} sx={{ width: { md: '45%' }, p: { xs: 3, md: 4 } }}>
+                {displayedItem.categories && displayedItem.categories.length > 0 && (
+                  <Stack direction="row" spacing={1} flexWrap="wrap" useFlexGap>
+                    {displayedItem.categories.map((cat) => (
+                      <Chip key={cat} label={cat} size="small" color="primary" variant="outlined" />
+                    ))}
                   </Stack>
-                ))}
+                )}
+
+                <Typography variant="h4">{displayedItem.title}</Typography>
+
+                {displayedItem.description && (
+                  <Typography sx={{ color: 'text.secondary' }}>{displayedItem.description}</Typography>
+                )}
+
+                {details.length > 0 && (
+                  <>
+                    <Divider sx={{ borderStyle: 'dashed' }} />
+                    <Stack spacing={1}>
+                      {details.map((row) => (
+                        <Stack key={row.label} direction="row" justifyContent="space-between">
+                          <Typography variant="body2" sx={{ color: 'text.disabled' }}>
+                            {row.label}
+                          </Typography>
+                          <Typography variant="body2">{row.value}</Typography>
+                        </Stack>
+                      ))}
+                    </Stack>
+                  </>
+                )}
               </Stack>
-            </>
-          )}
-        </Stack>
-      </Box>
-    </Dialog>
+            </Box>
+          </Box>
+        </>
+      )}
+    </AnimatePresence>
   );
 }

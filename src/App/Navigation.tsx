@@ -1,24 +1,39 @@
 import React, { useState } from 'react';
 import { Button, Stack, Typography, IconButton, Drawer, Box } from '@mui/material';
-import ShoppingCartIcon from '@mui/icons-material/ShoppingCart';
 import MenuIcon from '@mui/icons-material/Menu';
 import CloseIcon from '@mui/icons-material/Close';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useLocation } from 'react-router-dom';
 import { useResponsive } from '../hooks/use-responsive';
+import { ETSY_SHOP_URL } from '../lib/links';
+import { scrollToTopAndReset } from '../lib/scrollReset';
 
 const NAV_LINKS = [
     { label: 'Home', path: '/' },
     { label: 'Gallery', path: '/gallery' },
-    { label: 'About', path: '/about' },
+    // Jumps to the "Meet the Artist" section on the landing page rather
+    // than a separate page — see Routes.tsx for the scroll-to-hash effect.
+    { label: 'About', path: '/#meet-the-artist' },
+    // In-app shop isn't built yet — goes to Etsy for now.
+    { label: 'Shop', path: ETSY_SHOP_URL, external: true },
 ];
 
 const Navigation = () => {
     const navigate = useNavigate();
+    const location = useLocation();
     const mdUp = useResponsive('up', 'md');
     const [mobileOpen, setMobileOpen] = useState(false);
 
-    const go = (path: string) => {
-        navigate(path);
+    const go = (path: string, external?: boolean) => {
+        if (external) {
+            window.open(path, '_blank', 'noopener');
+        } else if (path === '/' && location.pathname === '/') {
+            // Already on the landing page — a plain navigate('/') is a
+            // no-op here, so scroll to top (and replay the reveal
+            // animations) instead of doing nothing.
+            scrollToTopAndReset();
+        } else {
+            navigate(path);
+        }
         setMobileOpen(false);
     };
 
@@ -49,23 +64,15 @@ const Navigation = () => {
             {mdUp ? (
                 <Stack direction="row" spacing={2} alignItems="center" justifyContent="center">
                     {NAV_LINKS.map((link) => (
-                        <Button key={link.path} variant={link.path === '/' ? undefined : 'text'} onClick={() => go(link.path)}>
+                        <Button key={link.path} variant={link.path === '/' ? undefined : 'text'} onClick={() => go(link.path, link.external)}>
                             {link.label}
                         </Button>
                     ))}
-                    <IconButton onClick={() => go('/cart')} color="primary">
-                        <ShoppingCartIcon />
-                    </IconButton>
                 </Stack>
             ) : (
-                <Stack direction="row" spacing={0.5} alignItems="center">
-                    <IconButton onClick={() => go('/cart')} color="primary" aria-label="Cart">
-                        <ShoppingCartIcon />
-                    </IconButton>
-                    <IconButton onClick={() => setMobileOpen(true)} aria-label="Open menu" sx={{ color: 'common.white' }}>
-                        <MenuIcon />
-                    </IconButton>
-                </Stack>
+                <IconButton onClick={() => setMobileOpen(true)} aria-label="Open menu" sx={{ color: 'common.white' }}>
+                    <MenuIcon />
+                </IconButton>
             )}
 
             <Drawer anchor="right" open={mobileOpen} onClose={() => setMobileOpen(false)}>
@@ -82,7 +89,7 @@ const Navigation = () => {
                                 fullWidth
                                 size="large"
                                 sx={{ justifyContent: 'flex-start' }}
-                                onClick={() => go(link.path)}
+                                onClick={() => go(link.path, link.external)}
                             >
                                 {link.label}
                             </Button>
