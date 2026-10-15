@@ -4,7 +4,7 @@ const palette = {
         main: '#22ccdcff',
     },
     secondary: {
-        main: '#262626ff',
+        main: 'rgb(29, 29, 29)',
     },
     info: {
         main: '#491cc3ff',

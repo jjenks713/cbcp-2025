@@ -13,22 +13,37 @@ import { alpha, useTheme } from '@mui/material/styles';
 import { motion as m } from 'framer-motion';
 
 import Image from '../components/image';
+import BackToTop from '../components/back-to-top';
 import { RouterLink } from '../components/RouterLink';
 import ArtworkModal from '../components/artwork-modal';
-import { varHover, varTranHover } from '../components/animate';
+import { varHover, varTranHover, MotionViewport, varZoom } from '../components/animate';
 import { useResponsive } from '../hooks/use-responsive';
-import { getArtworks, getCategoryTree, type ArtItem, type CategoryNode } from '../lib/contentful';
+import { getArtworks, getCategories, type ArtItem, type Category } from '../lib/contentful';
 import { PIECE_PARAM, galleryPieceHref } from '../lib/galleryLink';
 
-const ALL = 'all';
+// Flat display order for the gallery's tabs — Prints and Artist Books are
+// kept adjacent (even though Artist Books is a Prints subcategory in
+// Contentful) since they're closely related; anything else sorts after
+// these, alphabetically.
+const TAB_ORDER = ['Prints', 'Artist Books', 'Drawings', 'Commissions'];
+
+function sortCategories(categories: Category[]): Category[] {
+  return [...categories].sort((a, b) => {
+    const ai = TAB_ORDER.indexOf(a.name);
+    const bi = TAB_ORDER.indexOf(b.name);
+    if (ai === -1 && bi === -1) return a.name.localeCompare(b.name);
+    if (ai === -1) return 1;
+    if (bi === -1) return -1;
+    return ai - bi;
+  });
+}
 
 export default function Gallery() {
-  const [categories, setCategories] = useState<CategoryNode[]>([]);
+  const [categories, setCategories] = useState<Category[]>([]);
   const [artworks, setArtworks] = useState<ArtItem[]>([]);
   const [loading, setLoading] = useState(true);
 
-  const [topTab, setTopTab] = useState<string>(ALL);
-  const [subTab, setSubTab] = useState<string>(ALL);
+  const [topTab, setTopTab] = useState<string>('');
 
   const [searchParams, setSearchParams] = useSearchParams();
   const openPieceId = searchParams.get(PIECE_PARAM);
@@ -47,38 +62,36 @@ export default function Gallery() {
 
   useEffect(() => {
     let active = true;
-    Promise.all([getCategoryTree(), getArtworks()]).then(([cats, art]) => {
+    Promise.all([getCategories(), getArtworks()]).then(([cats, art]) => {
       if (!active) return;
-      setCategories(cats);
+      const sorted = sortCategories(cats);
+      setCategories(sorted);
       setArtworks(art);
       setLoading(false);
+
+      // Default to the Prints tab — unless we're deep-linking straight to
+      // a piece (e.g. from a home page card), in which case show whichever
+      // tab that piece actually lives in so the grid behind the modal
+      // matches what's open.
+      const pieceId = searchParams.get(PIECE_PARAM);
+      const piece = art.find((a) => a.id === pieceId);
+      const preferredId = piece?.categoryIds?.[0];
+      const printsCategory = sorted.find((c) => c.name === 'Prints');
+      setTopTab(preferredId ?? printsCategory?.id ?? sorted[0]?.id ?? '');
     });
     return () => {
       active = false;
     };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  const activeTopNode = categories.find((c) => c.id === topTab);
-
-  const filtered = useMemo(() => {
-    if (topTab === ALL) return artworks;
-
-    const idsInScope =
-      subTab === ALL
-        ? [topTab, ...(activeTopNode?.children.map((c) => c.id) ?? [])]
-        : [subTab];
-
-    return artworks.filter((item) => item.categoryIds?.some((id) => idsInScope.includes(id)));
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [artworks, topTab, subTab]);
+  const filtered = useMemo(
+    () => artworks.filter((item) => item.categoryIds?.includes(topTab)),
+    [artworks, topTab]
+  );
 
   const handleTopTab = (_: React.SyntheticEvent, value: string) => {
     setTopTab(value);
-    setSubTab(ALL);
-  };
-
-  const handleSubTab = (_: React.SyntheticEvent, value: string) => {
-    setSubTab(value);
   };
 
   return (
@@ -96,33 +109,12 @@ export default function Gallery() {
         scrollButtons="auto"
         variant="scrollable"
         allowScrollButtonsMobile
-        sx={{ mb: activeTopNode?.children.length ? 1 : 4 }}
+        sx={{ mb: 4 }}
       >
-        <Tab value={ALL} label="All" />
         {categories.map((cat) => (
           <Tab key={cat.id} value={cat.id} label={cat.name} />
         ))}
       </Tabs>
-
-      {activeTopNode && activeTopNode.children.length > 0 && (
-        <Tabs
-          value={subTab}
-          onChange={handleSubTab}
-          scrollButtons="auto"
-          variant="scrollable"
-          allowScrollButtonsMobile
-          sx={{
-            mb: 4,
-            minHeight: 36,
-            '& .MuiTab-root': { minHeight: 36, py: 0.5, fontSize: 13 },
-          }}
-        >
-          <Tab value={ALL} label={`All ${activeTopNode.name}`} />
-          {activeTopNode.children.map((sub) => (
-            <Tab key={sub.id} value={sub.id} label={sub.name} />
-          ))}
-        </Tabs>
-      )}
 
       {!loading && filtered.length === 0 && (
         <Typography sx={{ color: 'text.secondary', py: 10, textAlign: 'center' }}>
@@ -147,6 +139,8 @@ export default function Gallery() {
       </Box>
 
       <ArtworkModal item={openPiece} open={Boolean(openPiece)} onClose={closeModal} />
+
+      <BackToTop />
     </Container>
   );
 }
@@ -156,41 +150,68 @@ function GalleryItem({ item }: { item: ArtItem }) {
   const mdUp = useResponsive('up', 'md');
 
   return (
-    <Link component={RouterLink} href={galleryPieceHref(item.id)}>
-      <Paper
-        component={m.div}
-        whileHover="hover"
-        sx={{ position: 'relative', cursor: 'pointer', borderRadius: 2, overflow: 'hidden' }}
-      >
-        <Stack
-          spacing={1}
-          alignItems="center"
-          justifyContent="center"
-          sx={{
-            width: 1,
-            height: 1,
-            zIndex: 9,
-            position: 'absolute',
-            color: 'common.white',
-            textAlign: 'center',
-            px: 2,
-          }}
-        >
-          <Typography variant="overline" sx={{ opacity: 0.72 }}>
-            {item.category}
-          </Typography>
-          <Typography variant="h6">{item.title}</Typography>
-        </Stack>
+    // Each item gets its own MotionViewport (rather than one shared by the
+    // whole grid) so it reveals based on its own scroll position — a
+    // single viewport covering the entire grid would fire as soon as the
+    // first row is visible, leaving every row below it already fully
+    // animated in by the time the user actually scrolls down to them (see
+    // the same bug in CBCPAbout's git history for the long version).
+    <MotionViewport>
+      {/*
+        The scroll-reveal variant lives on this wrapper, not on the Paper
+        below — the Paper's `layoutId` makes it part of the shared-element
+        FLIP transition into the artwork modal, and that layout-projection
+        system fights with (and wins over) a `variants`-driven opacity/
+        scale on the *same* element, so it just renders fully visible
+        regardless of scroll position. Keeping them on separate elements
+        lets both animations run independently.
+      */}
+      <m.div variants={varZoom().in}>
+        <Link component={RouterLink} href={galleryPieceHref(item.id)}>
+          <Paper
+            component={m.div}
+            layoutId={`artwork-${item.id}`}
+            whileHover="hover"
+            sx={{ position: 'relative', cursor: 'pointer', borderRadius: 2, overflow: 'hidden' }}
+          >
+            <Stack
+              spacing={1}
+              alignItems="center"
+              justifyContent="center"
+              sx={{
+                width: 1,
+                height: 1,
+                zIndex: 9,
+                position: 'absolute',
+                color: 'common.white',
+                textAlign: 'center',
+                px: 2,
+              }}
+            >
+              <Typography variant="overline" sx={{ opacity: 0.72 }}>
+                {item.category}
+              </Typography>
+              <Typography variant="h6">{item.title}</Typography>
+            </Stack>
 
-        <m.div variants={varHover(1.1)} transition={varTranHover()}>
-          <Image
-            alt={item.title}
-            src={item.coverUrl}
-            ratio={mdUp ? '3/4' : '1/1'}
-            overlay={alpha(theme.palette.grey[900], 0.48)}
-          />
-        </m.div>
-      </Paper>
-    </Link>
+            <m.div variants={varHover(1.1)} transition={varTranHover()}>
+              <Image
+                alt={item.title}
+                src={item.coverUrl}
+                ratio={mdUp ? '3/4' : '1/1'}
+                overlay={alpha(theme.palette.grey[900], 0.48)}
+                // Source photos are flat-lay shots with a wood backdrop
+                // around the art — cropping into a non-matching ratio can
+                // leave slivers of that backdrop visible at the edges. A
+                // slight zoom (clipped by this Paper's own overflow:
+                // hidden) crops that margin out — same fix as
+                // CBCPArtwork's SmallItem.
+                sx={{ transform: 'scale(1.15)' }}
+              />
+            </m.div>
+          </Paper>
+        </Link>
+      </m.div>
+    </MotionViewport>
   );
 }

@@ -204,7 +204,7 @@ async function ensureCategories(client) {
 // artwork entries
 // -----------------------------------------------------------------------
 
-async function ensureArtwork(client, { id, title, categoryIds, description, medium, size, edition, coverAssetId, imageAssetIds, order }) {
+async function ensureArtwork(client, { id, title, categoryIds, description, medium, size, edition, coverAssetId, imageAssetIds }) {
   const entryParams = { spaceId: SPACE_ID, environmentId: ENVIRONMENT_ID, entryId: id };
 
   try {
@@ -222,7 +222,6 @@ async function ensureArtwork(client, { id, title, categoryIds, description, medi
       [LOCALE]: categoryIds.map((cid) => ({ sys: { type: 'Link', linkType: 'Entry', id: cid } })),
     },
     coverImage: { [LOCALE]: { sys: { type: 'Link', linkType: 'Asset', id: coverAssetId } } },
-    order: { [LOCALE]: order },
   };
   if (description) fields.description = { [LOCALE]: description };
   if (medium) fields.medium = { [LOCALE]: medium };
@@ -256,7 +255,6 @@ async function main() {
   const commissionUrls = new Set(commissionData.map((c) => c.url));
 
   console.log('\n--- Prints (main-data.js) ---');
-  let order = 0;
   for (const item of mainData) {
     const id = `artwork-prints-${slugify(item.name)}`;
     // eslint-disable-next-line no-await-in-loop
@@ -270,12 +268,10 @@ async function main() {
       size: item.size,
       edition: item.ed,
       coverAssetId,
-      order: order++,
     });
   }
 
   console.log('\n--- Artist Books (books-data.js) ---');
-  order = 0;
   for (const book of booksData) {
     const id = `artwork-books-${slugify(book.name)}`;
     const imageAssetIds = [];
@@ -294,12 +290,10 @@ async function main() {
       edition: book.ed,
       coverAssetId: imageAssetIds[0],
       imageAssetIds,
-      order: order++,
     });
   }
 
   console.log('\n--- Drawings (drawings-data.js), tagging Commissions overlap ---');
-  order = 0;
   for (const item of drawingsData) {
     const id = `artwork-drawings-${slugify(item.name)}`;
     const categoryIds = commissionUrls.has(item.url)
@@ -315,7 +309,6 @@ async function main() {
       medium: item.med,
       size: item.size,
       coverAssetId,
-      order: order++,
     });
   }
 

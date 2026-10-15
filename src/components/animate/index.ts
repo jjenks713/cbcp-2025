@@ -1,10 +1,10 @@
 import type { Variants } from 'framer-motion';
 
+export * from './variants';
+export { default as MotionViewport } from './motion-viewport';
+
+// Not part of the ported variant set below — a small hover-only helper
+// used for the gallery image zoom-on-hover effect.
 export const varHover = (scale = 1.1): Variants => ({
   hover: { scale },
-});
-
-export const varTranHover = () => ({
-  ease: [0.43, 0.13, 0.23, 0.96] as [number, number, number, number],
-  duration: 0.3,
 });

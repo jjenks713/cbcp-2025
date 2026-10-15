@@ -5,3 +5,11 @@
   in src/, public/, or any user-facing content. (Git commit message
   trailers are a separate harness-level convention and are not affected
   by this rule.)
+
+- Daily session log: `session/` at the repo root is gitignored — local
+  notes only, never committed. At the start of each day's first session
+  (i.e. no `session/YYYY-MM-DD.md` yet exists for today), create that
+  file. Throughout the day, keep it updated as a running recap of the
+  session(s) — what was asked, what was done, key decisions, and
+  anything left open — rather than writing it once at the end. Treat it
+  as a log to append/update as work happens, not a final summary.

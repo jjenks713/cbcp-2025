@@ -46,7 +46,12 @@ export default function CarouselArrows({
 
   if (hasChild) {
     return (
-      <Stack sx={sx} {...other}>
+      // The arrow buttons below are position: absolute (see hasChild in
+      // StyledIconButton) — without this Stack being their positioned
+      // ancestor, they fall through to the document root and render
+      // pinned to the middle of the *viewport* (wherever that happens to
+      // be scrolled to) instead of this carousel.
+      <Stack sx={{ position: 'relative', ...sx }} {...other}>
         {onNext && (
           <StyledIconButton filled={filled} shape={shape} hasChild onClick={onPrev}
             {...leftButtonProps} sx={{ left: 16, ...leftButtonProps?.sx }}>
