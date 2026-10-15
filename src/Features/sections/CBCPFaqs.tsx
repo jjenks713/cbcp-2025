@@ -1,4 +1,5 @@
 import { useState, useCallback } from 'react';
+import { motion as m } from 'framer-motion';
 
 import Box from '@mui/material/Box';
 import Stack from '@mui/material/Stack';
@@ -10,6 +11,7 @@ import AccordionSummary, { accordionSummaryClasses } from '@mui/material/Accordi
 
 import Image from '../../components/image';
 import Iconify from '../../components/iconify';
+import { MotionViewport, varFade, varZoom } from '../../components/animate';
 import { useResponsive } from '../../hooks/use-responsive';
 import { useContentfulList } from '../../hooks/useContentfulData';
 import { getFaqs } from '../../lib/contentful';
@@ -61,7 +63,7 @@ export default function CBCPFaqs() {
 
   return (
     <Box sx={{ bgcolor: 'secondary.main' }}>
-      <Container sx={{ pt: { xs: 5, md: 10 }, pb: { xs: 10, md: 15 } }}>
+      <Container component={MotionViewport} sx={{ pt: { xs: 5, md: 10 }, pb: { xs: 10, md: 15 } }}>
         <Box
           sx={{
             display: { md: 'flex' },
@@ -72,14 +74,20 @@ export default function CBCPFaqs() {
         >
           <Box sx={{ width: { md: '52%' } }}>
             <Stack spacing={2} sx={{ mb: 5, textAlign: { xs: 'center', md: 'left' } }}>
-              <Typography variant="overline" color="text.disabled">
-                FAQs
-              </Typography>
-              <Typography variant="h2">Frequently Asked Questions</Typography>
+              <Box component={m.div} variants={varFade().inUp}>
+                <Typography variant="overline" color="text.disabled">
+                  FAQs
+                </Typography>
+              </Box>
+              <Box component={m.div} variants={varFade().inUp}>
+                <Typography variant="h2">Frequently Asked Questions</Typography>
+              </Box>
             </Stack>
 
             {FAQS.map((faq) => (
               <Accordion
+                component={m.div}
+                variants={varFade().inUp}
                 key={faq.id}
                 expanded={expanded === faq.question}
                 onChange={handleChange(faq.question)}
@@ -108,15 +116,28 @@ export default function CBCPFaqs() {
                   />
                 </AccordionSummary>
                 <AccordionDetails sx={{ bgcolor: 'secondary.main' }}>
-                  {faq.answer}
+                  {/*
+                    The app doesn't use CssBaseline, so there's no global
+                    font-family reset — plain text here falls back to the
+                    browser's default serif font instead of the theme's
+                    Roboto. Wrapping it in Typography is what actually
+                    applies the theme font.
+                  */}
+                  <Typography variant="body2" sx={{ color: 'text.secondary' }}>
+                    {faq.answer}
+                  </Typography>
                 </AccordionDetails>
               </Accordion>
             ))}
           </Box>
 
           {mdUp && (
-            <Box sx={{ width: '40%', bgcolor: 'secondary.main' }}>
-              <Image alt="FAQs" src="/assets/illustrations/illustration_faqs.svg" />
+            <Box
+              component={m.div}
+              variants={varZoom().in}
+              sx={{ width: '40%', bgcolor: 'secondary.main' }}
+            >
+              <Image alt="FAQs" src="/assets/illustrations/illustration_faqs_questions.svg" />
             </Box>
           )}
         </Box>

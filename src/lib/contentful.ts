@@ -127,7 +127,6 @@ interface ArtworkFields {
   coverImage?: EntryFieldTypes.AssetLink;
   images?: EntryFieldTypes.Array<EntryFieldTypes.AssetLink>;
   featured?: EntryFieldTypes.Boolean;
-  order?: EntryFieldTypes.Integer;
 }
 type ArtworkSkeleton = EntrySkeletonType<ArtworkFields, 'artwork'>;
 
@@ -219,7 +218,8 @@ export async function getArtworks(opts?: { featuredOnly?: boolean }): Promise<Ar
     const res = await contentfulClient.getEntries<ArtworkSkeleton>({
       content_type: 'artwork',
       include: 2,
-      order: ['fields.order'],
+      // Newest first — no more manually-maintained display order field.
+      order: ['-sys.createdAt'],
       ...(opts?.featuredOnly ? { 'fields.featured': true } : {}),
     });
     return res.items.map((item) => {

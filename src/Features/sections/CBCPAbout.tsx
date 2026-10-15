@@ -1,3 +1,5 @@
+import { motion as m } from 'framer-motion';
+
 import Box from '@mui/material/Box';
 import Stack from '@mui/material/Stack';
 import Button from '@mui/material/Button';
@@ -9,6 +11,7 @@ import Image from '../../components/image';
 import Iconify from '../../components/iconify';
 import { fShortenNumber } from '../../utils/format-number';
 import { RouterLink } from '../../components/RouterLink';
+import { MotionViewport, varFade, varZoom, varTranEnter } from '../../components/animate';
 import { useContentfulSingle } from '../../hooks/useContentfulData';
 import { getArtist, type ArtistProfile } from '../../lib/contentful';
 
@@ -17,7 +20,7 @@ const FALLBACK_ARTIST: ArtistProfile = {
   role: 'Creator',
   bio: "Creepy But Cute Press is the creative outlet of Mary Jenkin — an artist drawn to the peculiar, the strange, and the beautifully unsettling. From creepy-styled fan art to wholly original pieces, every work is designed to make you look twice. Expect characters that haunt your dreams in the best possible way — weird, wonderful, and unlike anything else you'll find.",
   piecesSold: 500,
-  followers: 12000,
+  followers: 1000,
   yearsCreating: 10,
 };
 
@@ -44,14 +47,33 @@ export default function CBCPAbout() {
 
   return (
     <Container sx={{ py: { xs: 5, md: 10 } }}>
-      <Image
-        alt="Creepy But Cute Press artwork"
-        src="/assets/images/marketing/marketing_post_hero.jpg"
-        ratio="16/9"
-        sx={{ borderRadius: 1.5, mb: { xs: 5, md: 10 } }}
-      />
+      {/*
+        A framed gallery-wall shot of the artist's own work (chosen for its
+        naturally wide ~16:9 composition) rather than a stock photo.
+
+        This gets its own MotionViewport rather than sharing one with the
+        text/stats below — the banner alone is over half this section's
+        total height, so a single viewport trigger covering the whole
+        section (checked against amount: 0.3 of the *combined* height)
+        fires as soon as the banner is mostly in view, while the text and
+        stats are still well below the fold. By the time they're actually
+        visible they'd already be sitting at their final state — no
+        animation to see. Separate viewports mean each piece triggers off
+        its own visibility instead.
+      */}
+      <MotionViewport>
+        <Box component={m.div} variants={varZoom().in}>
+          <Image
+            alt="A wall of framed Creepy But Cute Press artwork"
+            src="https://images.ctfassets.net/lrvbgospprcp/4If2JgGZ7j6KWM22WaAuVe/0c5b09899118f3d2da11fedc9ebdfa21/Yue.jpg"
+            ratio="16/9"
+            sx={{ borderRadius: 1.5, mb: { xs: 5, md: 10 } }}
+          />
+        </Box>
+      </MotionViewport>
 
       <Box
+        component={MotionViewport}
         sx={{
           display: { md: 'flex' },
           columnGap: 3,
@@ -61,33 +83,45 @@ export default function CBCPAbout() {
         }}
       >
         <Box sx={{ width: { md: '42%' }, textAlign: { xs: 'center', md: 'right' } }}>
-          <Typography component="div" variant="overline" sx={{ color: 'text.disabled' }}>
-            About the Artist
-          </Typography>
+          <Box component={m.div} variants={varFade().inLeft}>
+            <Typography component="div" variant="overline" sx={{ color: 'text.disabled' }}>
+              About the Artist
+            </Typography>
+          </Box>
 
-          <Typography variant="h2" sx={{ my: 3 }}>
-            The Mind Behind the Madness
-          </Typography>
+          <Box component={m.div} variants={varFade().inLeft} sx={{ my: 3 }}>
+            <Typography variant="h2">The Mind Behind the Madness</Typography>
+          </Box>
 
-          <Typography sx={{ color: 'text.secondary' }}>{artist.bio}</Typography>
+          <Box component={m.div} variants={varFade().inLeft}>
+            <Typography sx={{ color: 'text.secondary' }}>{artist.bio}</Typography>
+          </Box>
 
-          <Button
-            component={RouterLink}
-            href="/about"
-            size="large"
-            color="inherit"
-            endIcon={<Iconify icon="carbon:chevron-right" />}
-            sx={{ my: 5 }}
-          >
-            Learn More
-          </Button>
+          {/* Jumps to the "Meet the Artist" section — see Routes.tsx. */}
+          <Box component={m.div} variants={varFade().inLeft}>
+            <Button
+              component={RouterLink}
+              href="/#meet-the-artist"
+              size="large"
+              color="inherit"
+              endIcon={<Iconify icon="carbon:chevron-right" />}
+              sx={{ my: 5 }}
+            >
+              Learn More
+            </Button>
+          </Box>
         </Box>
 
         <Box sx={{ width: { md: '52%' } }}>
           <Stack spacing={5}>
-            {STATS.map((row) => (
+            {STATS.map((row, index) => (
               <Stack
                 key={row.label}
+                component={m.div}
+                variants={varFade().inRight}
+                // Left column animates in first; each stat row then slides
+                // in from the right a little later than the one above it.
+                transition={{ ...varTranEnter(), delay: 0.3 + index * 0.15 }}
                 direction="row"
                 alignItems="center"
                 divider={

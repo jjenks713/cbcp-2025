@@ -11,6 +11,9 @@
 # production
 /build
 
+# local daily session notes (see CLAUDE.md)
+/session
+
 # misc
 .DS_Store
 .env.local
