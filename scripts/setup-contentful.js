@@ -98,7 +98,6 @@ const CONTENT_TYPES = [
         type: 'Boolean',
         required: false,
       },
-      { id: 'order', name: 'Display Order', type: 'Integer', required: false },
     ],
   },
   {

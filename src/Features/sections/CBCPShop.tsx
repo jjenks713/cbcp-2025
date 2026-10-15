@@ -1,3 +1,5 @@
+import { motion as m } from 'framer-motion';
+
 import Box from '@mui/material/Box';
 import Card from '@mui/material/Card';
 import Stack from '@mui/material/Stack';
@@ -7,11 +9,14 @@ import Typography from '@mui/material/Typography';
 
 import Iconify from '../../components/iconify';
 import TextMaxLine from '../../components/text-max-line';
-import { RouterLink } from '../../components/RouterLink';
+import { MotionViewport, varFade, varZoom } from '../../components/animate';
 import { useContentfulList } from '../../hooks/useContentfulData';
 import { getShopItems } from '../../lib/contentful';
+import { ETSY_SHOP_URL } from '../../lib/links';
 
-const COLORS = ['primary', 'secondary', 'success', 'warning'] as const;
+// 'secondary' is deliberately excluded — it's the theme's near-black
+// background color (#262626), not a usable accent against a dark card.
+const COLORS = ['primary', 'info', 'success', 'warning'] as const;
 
 const FALLBACK_PRODUCTS = [
   {
@@ -44,7 +49,7 @@ export default function CBCPShop() {
   const PRODUCTS = useContentfulList(getShopItems, FALLBACK_PRODUCTS);
 
   return (
-    <Container sx={{ py: { xs: 5, md: 10 } }}>
+    <Container component={MotionViewport} sx={{ py: { xs: 5, md: 10 } }}>
       <Stack
         spacing={3}
         sx={{
@@ -54,16 +59,22 @@ export default function CBCPShop() {
           textAlign: { xs: 'center', md: 'unset' },
         }}
       >
-        <Typography variant="overline" sx={{ color: 'text.disabled' }}>
-          Shop
-        </Typography>
+        <Box component={m.div} variants={varFade().inUp}>
+          <Typography variant="overline" sx={{ color: 'text.disabled' }}>
+            Shop
+          </Typography>
+        </Box>
 
-        <Typography variant="h2">What We Offer</Typography>
+        <Box component={m.div} variants={varFade().inUp}>
+          <Typography variant="h2">What We Offer</Typography>
+        </Box>
 
-        <Typography sx={{ color: 'text.secondary' }}>
-          Every item is made with care and a love for the weird. Browse the shop and find something
-          that speaks to your inner creep.
-        </Typography>
+        <Box component={m.div} variants={varFade().inUp}>
+          <Typography sx={{ color: 'text.secondary' }}>
+            Every item is made with care and a love for the weird. Browse the shop and find
+            something that speaks to your inner creep.
+          </Typography>
+        </Box>
       </Stack>
 
       <Box
@@ -79,7 +90,9 @@ export default function CBCPShop() {
         }}
       >
         {PRODUCTS.map((product, index) => (
-          <ShopCard key={product.name} product={product} index={index} />
+          <Box key={product.name} component={m.div} variants={varZoom().in}>
+            <ShopCard product={product} index={index} />
+          </Box>
         ))}
       </Box>
     </Container>
@@ -87,7 +100,7 @@ export default function CBCPShop() {
 }
 
 function ShopCard({ product, index }: { product: typeof FALLBACK_PRODUCTS[number]; index: number }) {
-  const { name, icon, content, path } = product;
+  const { name, icon, content } = product;
   const color = COLORS[index % COLORS.length];
 
   return (
@@ -96,6 +109,10 @@ function ShopCard({ product, index }: { product: typeof FALLBACK_PRODUCTS[number
         px: 4,
         py: 5,
         textAlign: 'center',
+        // No bgcolor override here defaults to MUI's background.paper
+        // (white), and the theme's near-white default text color is
+        // invisible on that — same bug as the Art section's cards.
+        bgcolor: 'background.default',
         ...(index === 1 && { py: { xs: 5, md: 8 } }),
         ...(index === 2 && {
           py: { xs: 5, md: 10 },
@@ -114,16 +131,8 @@ function ShopCard({ product, index }: { product: typeof FALLBACK_PRODUCTS[number
         <TextMaxLine variant="body2" sx={{ color: 'text.secondary' }}>{content}</TextMaxLine>
       </Stack>
 
-      <IconButton
-        component={RouterLink}
-        href={path}
-        color={
-          (index === 0 && 'primary') ||
-          (index === 1 && 'secondary') ||
-          (index === 2 && 'success') ||
-          'warning'
-        }
-      >
+      {/* In-app shop isn't built yet — every shop link goes to Etsy for now. */}
+      <IconButton component="a" href={ETSY_SHOP_URL} target="_blank" rel="noopener" color={color}>
         <Iconify icon="carbon:direction-straight-right" />
       </IconButton>
     </Card>

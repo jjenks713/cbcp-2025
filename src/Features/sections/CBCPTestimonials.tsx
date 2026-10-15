@@ -1,9 +1,12 @@
+import { motion as m } from 'framer-motion';
+
 import Box from '@mui/material/Box';
 import Avatar from '@mui/material/Avatar';
 import Stack from '@mui/material/Stack';
 import Container from '@mui/material/Container';
 import Typography from '@mui/material/Typography';
 
+import { MotionViewport, varFade, varZoom } from '../../components/animate';
 import Carousel, { useCarousel, CarouselDots, CarouselArrows } from '../../components/carousel';
 
 const TESTIMONIALS = [
@@ -48,12 +51,16 @@ export default function CBCPTestimonials() {
 
   return (
     <Box sx={{ bgcolor: 'background.neutral', overflow: 'hidden' }}>
-      <Container sx={{ position: 'relative', py: { xs: 10, md: 15 } }}>
+      <Container component={MotionViewport} sx={{ position: 'relative', py: { xs: 10, md: 15 } }}>
         <Stack spacing={2} sx={{ textAlign: 'center', mb: { xs: 8, md: 10 } }}>
-          <Typography variant="overline" sx={{ color: 'text.disabled' }}>
-            Testimonials
-          </Typography>
-          <Typography variant="h2">People Who Love Our Work</Typography>
+          <Box component={m.div} variants={varFade().inUp}>
+            <Typography variant="overline" sx={{ color: 'text.disabled' }}>
+              Testimonials
+            </Typography>
+          </Box>
+          <Box component={m.div} variants={varFade().inUp}>
+            <Typography variant="h2">People Who Love Our Work</Typography>
+          </Box>
         </Stack>
 
         <CarouselArrows
@@ -62,7 +69,7 @@ export default function CBCPTestimonials() {
           leftButtonProps={{ sx: { opacity: { xs: 0, md: 1 } } }}
           rightButtonProps={{ sx: { opacity: { xs: 0, md: 1 } } }}
         >
-          <Box sx={{ width: 1, maxWidth: 800, mx: 'auto' }}>
+          <Box component={m.div} variants={varZoom().in} sx={{ width: 1, maxWidth: 800, mx: 'auto' }}>
             <Carousel ref={carousel.carouselRef} {...carousel.carouselSettings}>
               {TESTIMONIALS.map((t) => (
                 <TestimonialItem key={t.id} testimonial={t} />

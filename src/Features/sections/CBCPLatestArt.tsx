@@ -1,3 +1,5 @@
+import { motion as m } from 'framer-motion';
+
 import Box from '@mui/material/Box';
 import Stack from '@mui/material/Stack';
 import Button from '@mui/material/Button';
@@ -6,26 +8,29 @@ import Typography from '@mui/material/Typography';
 
 import Iconify from '../../components/iconify';
 import { RouterLink } from '../../components/RouterLink';
+import { MotionViewport, varFade, varZoom } from '../../components/animate';
 import Carousel, { useCarousel, CarouselDots, CarouselArrows } from '../../components/carousel';
-import { useTheme } from '@mui/material/styles';
 import { useResponsive } from '../../hooks/use-responsive';
 import { useContentfulList } from '../../hooks/useContentfulData';
 import { getArtworks, type ArtItem as ArtItemData } from '../../lib/contentful';
 import { galleryPieceHref } from '../../lib/galleryLink';
 
 export default function CBCPLatestArt() {
-  const theme = useTheme();
   const mdUp = useResponsive('up', 'md');
+  const smUp = useResponsive('up', 'sm');
   const ART_ITEMS = useContentfulList(() => getArtworks({ featuredOnly: true }), [] as ArtItemData[]);
 
+  // react-slick's own `responsive` breakpoints only re-check on a media
+  // query *change* event — if the page loads already inside the smallest
+  // breakpoint (e.g. straight to a phone-width viewport), that event never
+  // fires and slidesToShow silently stays at the base value. Computing it
+  // via useResponsive (MUI's useMediaQuery) instead is correct on load.
+  const slidesToShow = mdUp ? 3 : smUp ? 2 : 1;
+
   const carousel = useCarousel({
-    slidesToShow: 3,
+    slidesToShow,
     slidesToScroll: 1,
     ...CarouselDots({ sx: { mt: 5 } }),
-    responsive: [
-      { breakpoint: theme.breakpoints.values.md, settings: { slidesToShow: 2 } },
-      { breakpoint: theme.breakpoints.values.sm, settings: { slidesToShow: 1 } },
-    ],
   });
 
   const viewAllBtn = (
@@ -43,19 +48,27 @@ export default function CBCPLatestArt() {
   if (ART_ITEMS.length === 0) return null;
 
   return (
-    <Container sx={{ py: { xs: 8, md: 15 } }}>
+    <Container component={MotionViewport} sx={{ py: { xs: 8, md: 15 } }}>
       <Stack
         direction="row"
         alignItems="center"
         justifyContent={{ xs: 'center', md: 'space-between' }}
         sx={{ mb: 5 }}
       >
-        <Typography variant="h3">Featured Artwork</Typography>
-        {mdUp && viewAllBtn}
+        <Box component={m.div} variants={varFade().inUp}>
+          <Typography variant="h3">Featured Artwork</Typography>
+        </Box>
+        {mdUp && (
+          <Box component={m.div} variants={varFade().inUp}>
+            {viewAllBtn}
+          </Box>
+        )}
       </Stack>
 
       {/* Negative margin expands track beyond container; slick-slide padding creates the visible gap */}
       <Box
+        component={m.div}
+        variants={varZoom().in}
         sx={{
           mx: { xs: -2, md: -3 },
           '& .slick-slide > div': { px: { xs: 2, md: 3 } },

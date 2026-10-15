@@ -14,7 +14,7 @@ import Image from '../../components/image';
 import Iconify from '../../components/iconify';
 import TextMaxLine from '../../components/text-max-line';
 import { RouterLink } from '../../components/RouterLink';
-import { varHover, varTranHover } from '../../components/animate';
+import { varHover, varTranHover, MotionViewport, varFade, varZoom } from '../../components/animate';
 import { useResponsive } from '../../hooks/use-responsive';
 import { useContentfulList } from '../../hooks/useContentfulData';
 import { getArtworks, type ArtItem } from '../../lib/contentful';
@@ -32,45 +32,49 @@ export default function CBCPArtwork() {
   if (ART_ITEMS.length < 6) return null;
 
   return (
-    <Container sx={{ overflow: 'hidden', pt: { xs: 5, md: 10 }, pb: 10 }}>
+    <Container component={MotionViewport} sx={{ overflow: 'hidden', pt: { xs: 5, md: 10 }, pb: 10 }}>
       <Stack spacing={3} sx={{ textAlign: { xs: 'center', md: 'unset' } }}>
-        <Typography variant="overline" sx={{ color: 'text.disabled' }}>Our Work</Typography>
-        <Typography variant="h2">The Art</Typography>
+        <Box component={m.div} variants={varFade().inUp}>
+          <Typography variant="overline" sx={{ color: 'text.disabled' }}>Our Work</Typography>
+        </Box>
+        <Box component={m.div} variants={varFade().inUp}>
+          <Typography variant="h2">The Art</Typography>
+        </Box>
       </Stack>
 
       <Grid container spacing={3} alignItems="center" sx={{ py: { xs: 8, md: 10 } }}>
         {/* Left tall column */}
-        <Grid size={{ xs: 6, md: 2 }}>
+        <Grid component={m.div} variants={varZoom().in} size={{ xs: 6, md: 2 }}>
           <SmallItem item={ART_ITEMS[0]} />
         </Grid>
 
         {/* Center mosaic */}
-        <Grid container size={{ xs: 12, md: 8 }}>
-          <Grid size={{ xs: 6, md: 9 }}>
+        <Grid container spacing={3} size={{ xs: 12, md: 8 }}>
+          <Grid component={m.div} variants={varZoom().in} size={{ xs: 6, md: 9 }}>
             {mdUp ? <LargeItem item={ART_ITEMS[1]} /> : <SmallItem item={ART_ITEMS[1]} square />}
           </Grid>
-          <Grid size={{ xs: 6, md: 3 }}>
+          <Grid component={m.div} variants={varZoom().in} size={{ xs: 6, md: 3 }}>
             <Stack justifyContent={{ md: 'flex-end' }} sx={{ height: { md: 1 } }}>
               <SmallItem item={ART_ITEMS[2]} square />
             </Stack>
           </Grid>
-          <Grid size={{ xs: 6, md: 3 }}>
+          <Grid component={m.div} variants={varZoom().in} size={{ xs: 6, md: 3 }}>
             <SmallItem item={ART_ITEMS[3]} square />
           </Grid>
-          <Grid size={{ xs: 6, md: 9 }}>
+          <Grid component={m.div} variants={varZoom().in} size={{ xs: 6, md: 9 }}>
             {mdUp ? <LargeItem item={ART_ITEMS[4]} /> : <SmallItem item={ART_ITEMS[4]} square />}
           </Grid>
         </Grid>
 
         {/* Right tall column — desktop only */}
         {mdUp && (
-          <Grid size={{ xs: 6, md: 2 }}>
+          <Grid component={m.div} variants={varZoom().in} size={{ xs: 6, md: 2 }}>
             <SmallItem item={ART_ITEMS[5]} />
           </Grid>
         )}
       </Grid>
 
-      <Stack alignItems={{ xs: 'center', md: 'flex-end' }}>
+      <Stack component={m.div} variants={varFade().inUp} alignItems={{ xs: 'center', md: 'flex-end' }}>
         <Button
           component={RouterLink}
           href="/gallery"
@@ -91,25 +95,42 @@ function LargeItem({ item }: { item: ArtItem }) {
       sx={{
         display: 'grid',
         borderRadius: 2,
+        bgcolor: 'background.default',
         boxShadow: '0 24px 48px 0 rgba(0,0,0,0.20)',
         gridTemplateColumns: { xs: '1fr', md: 'repeat(2, 1fr)' },
       }}
     >
-      <Box sx={{ p: 0.75 }}>
+      <Box sx={{ p: 0.75, display: 'flex', alignItems: 'center' }}>
         <Image alt="artwork" src={item.coverUrl} ratio="3/4" sx={{ borderRadius: 2 }} />
       </Box>
-      <Stack alignItems="flex-end" justifyContent="space-between" sx={{ p: 3, pt: 5, height: 1 }}>
+      {/*
+        No height: 1 / justifyContent: space-between here — the image's
+        3/4 ratio makes its column fairly short at a 2-up width, and a
+        fixed-height text column (forced to match it) would overflow
+        and spill the button out below the card whenever title +
+        description need more room than that. Sizing naturally and
+        letting the grid row grow to fit keeps everything inside.
+      */}
+      <Stack alignItems="flex-end" spacing={2} sx={{ p: 3, pt: 5, textAlign: 'right' }}>
         <div>
           <Typography variant="overline" sx={{ color: 'primary.main' }}>{item.category}</Typography>
           <Typography variant="h4" sx={{ mt: 1, mb: 2 }}>{item.title}</Typography>
           <TextMaxLine variant="body2" sx={{ color: 'text.secondary' }}>{item.description}</TextMaxLine>
         </div>
+        {/*
+          endIcon would count toward the button's own width, pulling its
+          text left of where the title's text ends. Positioning the icon
+          absolutely takes it out of that layout box entirely — the
+          button's box (and so its text) is exactly as wide as "View
+          Piece", and the chevron just floats past its right edge.
+        */}
         <Button
           component={RouterLink}
           href={galleryPieceHref(item.id)}
           size="small"
           color="inherit"
-          endIcon={<Iconify icon="carbon:chevron-right" />}
+          variant={"text"}
+          sx={{ pr: 0, minWidth: 0, position: 'relative' }}
         >
           View Piece
         </Button>
@@ -148,6 +169,12 @@ function SmallItem({ item, square }: { item: ArtItem; square?: boolean }) {
             src={item.coverUrl}
             ratio={(square && '1/1') || (mdUp && '3/4') || '1/1'}
             overlay={alpha(theme.palette.grey[900], 0.48)}
+            // Source photos are flat-lay shots with a wood backdrop around
+            // the art — cropping a landscape photo into a square/portrait
+            // frame can leave slivers of that backdrop visible at the
+            // edges. A slight zoom (clipped by this Paper's own
+            // overflow: hidden) crops that margin out.
+            sx={{ transform: 'scale(1.15)' }}
           />
         </m.div>
       </Paper>
