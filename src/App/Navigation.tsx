@@ -7,7 +7,18 @@ const Navigation = () => {
     const navigate = useNavigate();
 
     return (
-        <Stack direction="row" justifyContent="space-between" py={2} px={4}>
+        <Stack
+            direction="row"
+            justifyContent="space-between"
+            py={2}
+            px={4}
+            sx={{
+                position: 'sticky',
+                top: 0,
+                zIndex: (theme) => theme.zIndex.appBar,
+                bgcolor: 'secondary.main',
+            }}
+        >
             <Typography variant="h3">
                 <img src={require('./CBCP-Cube-big.png')} alt="Logo" width={"100px"} />
             </Typography>
