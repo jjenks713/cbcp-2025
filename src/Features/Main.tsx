@@ -1,17 +1,29 @@
-import { Stack, Typography } from '@mui/material';
-import React from 'react';
+import CBCPHero from './sections/CBCPHero';
+import CBCPLatestArt from './sections/CBCPLatestArt';
+import CBCPSocialBrands from './sections/CBCPSocialBrands';
+import CBCPAbout from './sections/CBCPAbout';
+import CBCPShop from './sections/CBCPShop';
+import CBCPArtStyles from './sections/CBCPArtStyles';
+import CBCPArtwork from './sections/CBCPArtwork';
+import CBCPArtist from './sections/CBCPArtist';
+import CBCPFaqs from './sections/CBCPFaqs';
+import CBCPTestimonials from './sections/CBCPTestimonials';
+import CBCPContact from './sections/CBCPContact';
 
-const Main = () => {
-    return (
-        <Stack>
-            <Typography variant="h3" align="center" gutterBottom style={{ marginTop: '20px' }}>
-                This is the place
-            </Typography>
-            <Typography variant="h6" align="center" gutterBottom style={{ marginTop: '20px' }}>
-                Explore our website to learn more about the event, speakers, and schedule.
-            </Typography>
-        </Stack>
-    );
-};
-
-export default Main;
+export default function Main() {
+  return (
+    <>
+      <CBCPHero />
+      <CBCPLatestArt />
+      <CBCPSocialBrands />
+      <CBCPAbout />
+      <CBCPShop />
+      <CBCPArtStyles />
+      <CBCPArtwork />
+      <CBCPArtist />
+      <CBCPFaqs />
+      <CBCPTestimonials />
+      <CBCPContact />
+    </>
+  );
+}
