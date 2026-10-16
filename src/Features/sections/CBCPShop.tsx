@@ -1,3 +1,4 @@
+import type { ElementType } from 'react';
 import { motion as m } from 'framer-motion';
 
 import Box from '@mui/material/Box';
@@ -6,17 +7,37 @@ import Stack from '@mui/material/Stack';
 import Container from '@mui/material/Container';
 import IconButton from '@mui/material/IconButton';
 import Typography from '@mui/material/Typography';
+import BrushIcon from '@mui/icons-material/Brush';
+import LabelIcon from '@mui/icons-material/Label';
+import ArrowForward from '@mui/icons-material/ArrowForward';
+import ShoppingBagIcon from '@mui/icons-material/ShoppingBag';
+import PhotoLibraryIcon from '@mui/icons-material/PhotoLibrary';
+import type { Theme } from '@mui/material/styles';
 
-import Iconify from '../../components/iconify';
 import TextMaxLine from '../../components/text-max-line';
 import { MotionViewport, varFade, varZoom } from '../../components/animate';
 import { useContentfulList } from '../../hooks/useContentfulData';
-import { getShopItems } from '../../lib/contentful';
+import { getShopCategories } from '../../lib/contentful';
 import { ETSY_SHOP_URL } from '../../lib/links';
 
 // 'secondary' is deliberately excluded — it's the theme's near-black
 // background color (#262626), not a usable accent against a dark card.
 const COLORS = ['primary', 'info', 'success', 'warning'] as const;
+
+// The "icon" field on a Contentful shop category is free text, so it has to be
+// mapped to a fixed MUI icon rather than rendered directly (unlike Iconify,
+// which could render any icon name as-is). Keyed by the exact string values
+// already used in Contentful/FALLBACK_PRODUCTS below, so existing content
+// keeps working; anything else - e.g. a new value a content editor types in
+// without knowing this list - falls back to DEFAULT_SHOP_ICON. The admin
+// panel offers exactly these keys as choices for that field.
+export const SHOP_ICONS: Record<string, ElementType> = {
+  'carbon:image-copy': PhotoLibraryIcon,
+  'ph:paint-brush-bold': BrushIcon,
+  'ph:sticker-bold': LabelIcon,
+  'carbon:shopping-bag': ShoppingBagIcon,
+};
+const DEFAULT_SHOP_ICON = ShoppingBagIcon;
 
 const FALLBACK_PRODUCTS = [
   {
@@ -46,7 +67,7 @@ const FALLBACK_PRODUCTS = [
 ];
 
 export default function CBCPShop() {
-  const PRODUCTS = useContentfulList(getShopItems, FALLBACK_PRODUCTS);
+  const PRODUCTS = useContentfulList(getShopCategories, FALLBACK_PRODUCTS);
 
   return (
     <Container component={MotionViewport} sx={{ py: { xs: 5, md: 10 } }}>
@@ -102,6 +123,7 @@ export default function CBCPShop() {
 function ShopCard({ product, index }: { product: typeof FALLBACK_PRODUCTS[number]; index: number }) {
   const { name, icon, content } = product;
   const color = COLORS[index % COLORS.length];
+  const ShopIcon = SHOP_ICONS[icon] ?? DEFAULT_SHOP_ICON;
 
   return (
     <Card
@@ -120,11 +142,7 @@ function ShopCard({ product, index }: { product: typeof FALLBACK_PRODUCTS[number
         }),
       }}
     >
-      <Iconify
-        icon={icon}
-        width={88}
-        sx={{ mx: 'auto', color: (theme) => theme.palette[color].main }}
-      />
+      <ShopIcon sx={{ fontSize: 88, mx: 'auto', color: (theme: Theme) => theme.palette[color].main }} />
 
       <Stack spacing={1} sx={{ my: 5 }}>
         <TextMaxLine variant="h6">{name}</TextMaxLine>
@@ -133,7 +151,7 @@ function ShopCard({ product, index }: { product: typeof FALLBACK_PRODUCTS[number
 
       {/* In-app shop isn't built yet — every shop link goes to Etsy for now. */}
       <IconButton component="a" href={ETSY_SHOP_URL} target="_blank" rel="noopener" color={color}>
-        <Iconify icon="carbon:direction-straight-right" />
+        <ArrowForward />
       </IconButton>
     </Card>
   );

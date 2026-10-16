@@ -5,9 +5,9 @@ import Button from '@mui/material/Button';
 import Container from '@mui/material/Container';
 import Typography from '@mui/material/Typography';
 import { alpha, useTheme } from '@mui/material/styles';
+import PlayArrow from '@mui/icons-material/PlayArrow';
 
 import Image from '../../components/image';
-import Iconify from '../../components/iconify';
 import { bgGradient } from '../../Theme/css';
 import { useResponsive } from '../../hooks/use-responsive';
 import { RouterLink } from '../../components/RouterLink';
@@ -107,7 +107,7 @@ export default function CBCPHero() {
                 sx={{ typography: 'h6', textDecoration: 'none', color: 'common.white' }}
               >
                 <Fab size="medium" sx={{ mr: 1, flexShrink: 0 }}>
-                  <Iconify width={24} icon="carbon:play" />
+                  <PlayArrow sx={{ fontSize: 24 }} />
                 </Fab>
                 See Our Work
               </Stack>

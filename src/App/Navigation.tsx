@@ -4,6 +4,7 @@ import MenuIcon from '@mui/icons-material/Menu';
 import CloseIcon from '@mui/icons-material/Close';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { useResponsive } from '../hooks/use-responsive';
+import { useAuth } from '../lib/auth-context';
 import { ETSY_SHOP_URL } from '../lib/links';
 import { scrollToTopAndReset } from '../lib/scrollReset';
 
@@ -20,8 +21,14 @@ const NAV_LINKS = [
 const Navigation = () => {
     const navigate = useNavigate();
     const location = useLocation();
+    const { user, logout } = useAuth();
     const mdUp = useResponsive('up', 'md');
     const [mobileOpen, setMobileOpen] = useState(false);
+    const navLinks = [
+        ...NAV_LINKS,
+        ...(user ? [{ label: 'Account', path: '/account' }] : []),
+        ...(user?.role === 'admin' ? [{ label: 'Admin', path: '/admin' }] : []),
+    ];
 
     const go = (path: string, external?: boolean) => {
         if (external) {
@@ -34,6 +41,12 @@ const Navigation = () => {
         } else {
             navigate(path);
         }
+        setMobileOpen(false);
+    };
+
+    const handleLogout = () => {
+        logout();
+        navigate('/login');
         setMobileOpen(false);
     };
 
@@ -63,11 +76,12 @@ const Navigation = () => {
 
             {mdUp ? (
                 <Stack direction="row" spacing={2} alignItems="center" justifyContent="center">
-                    {NAV_LINKS.map((link) => (
+                    {navLinks.map((link) => (
                         <Button key={link.path} variant={link.path === '/' ? undefined : 'text'} onClick={() => go(link.path, link.external)}>
                             {link.label}
                         </Button>
                     ))}
+                    {user && <Button variant="text" onClick={handleLogout}>Log Out</Button>}
                 </Stack>
             ) : (
                 <IconButton onClick={() => setMobileOpen(true)} aria-label="Open menu" sx={{ color: 'common.white' }}>
@@ -83,7 +97,7 @@ const Navigation = () => {
                         </IconButton>
                     </Stack>
                     <Stack spacing={1} px={2}>
-                        {NAV_LINKS.map((link) => (
+                        {navLinks.map((link) => (
                             <Button
                                 key={link.path}
                                 fullWidth
@@ -94,6 +108,16 @@ const Navigation = () => {
                                 {link.label}
                             </Button>
                         ))}
+                        {user && (
+                            <Button
+                                fullWidth
+                                size="large"
+                                sx={{ justifyContent: 'flex-start' }}
+                                onClick={handleLogout}
+                            >
+                                Log Out
+                            </Button>
+                        )}
                     </Stack>
                 </Box>
             </Drawer>
