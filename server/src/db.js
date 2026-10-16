@@ -10,8 +10,11 @@ async function connectDB() {
     console.error('[db] connection error:', err);
   });
 
-  await mongoose.connect(uri);
-  console.log('[db] connected');
+  // Environments share one Atlas cluster (one URI); MONGODB_DB_NAME picks
+  // the database - e.g. prod sets cbcp2025-prod. Unset = whatever the URI says.
+  const dbName = process.env.MONGODB_DB_NAME || undefined;
+  await mongoose.connect(uri, { dbName });
+  console.log(`[db] connected (${mongoose.connection.name})`);
 }
 
 module.exports = { connectDB };
