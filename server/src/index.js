@@ -7,6 +7,7 @@ const express = require('express');
 const cors = require('cors');
 
 const { connectDB } = require('./db');
+const authRoutes = require('./routes/auth');
 
 const app = express();
 app.use(cors());
@@ -16,7 +17,14 @@ app.get('/health', (req, res) => {
   res.json({ ok: true });
 });
 
+app.use('/api/auth', authRoutes);
+
 const PORT = process.env.PORT || 8080;
+
+if (!process.env.JWT_SECRET) {
+  console.error('[server] JWT_SECRET is not set');
+  process.exit(1);
+}
 
 connectDB()
   .then(() => {

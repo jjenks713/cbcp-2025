@@ -1,8 +1,11 @@
 import React, { useEffect } from "react";
 import { useRoutes, useLocation } from "react-router-dom";
 import Layout from "./Layout";
+import RequireAuth from "./RequireAuth";
 import Main from "../Features/Main";
 import Gallery from "../Features/Gallery";
+import Login from "../Features/Login";
+import Account from "../Features/Account";
 
 const routes = [
     {
@@ -16,7 +19,20 @@ const routes = [
             {
                 path: "gallery",
                 element: <Gallery />,
-            }
+            },
+            {
+                path: "login",
+                element: <Login />,
+            },
+            {
+                element: <RequireAuth />,
+                children: [
+                    {
+                        path: "account",
+                        element: <Account />,
+                    },
+                ],
+            },
         ],
     }
 ];
