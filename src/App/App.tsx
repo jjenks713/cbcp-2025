@@ -10,6 +10,7 @@ import { ThemeProvider } from '@mui/material';
 import CssBaseline from '@mui/material/CssBaseline';
 import useTheme from '../Theme';
 import LaunchDarklyProvider from '../lib/launchdarkly-provider';
+import { AuthProvider } from '../lib/auth-context';
 import Routes from './Routes';
 
 function App() {
@@ -26,7 +27,9 @@ function App() {
         */}
         <CssBaseline />
         <LaunchDarklyProvider>
-          <Routes />
+          <AuthProvider>
+            <Routes />
+          </AuthProvider>
         </LaunchDarklyProvider>
       </ThemeProvider>
     </BrowserRouter>
