@@ -7,8 +7,8 @@ import Stack from '@mui/material/Stack';
 import Divider from '@mui/material/Divider';
 import IconButton from '@mui/material/IconButton';
 import Typography from '@mui/material/Typography';
+import CloseIcon from '@mui/icons-material/Close';
 
-import Iconify from '../iconify';
 import ArtworkModalCarousel from './artwork-modal-carousel';
 import { type ArtItem } from '../../lib/contentful';
 
@@ -132,7 +132,7 @@ export default function ArtworkModal({ item, open, onClose }: Props) {
                   '&:hover': { bgcolor: (theme) => `${theme.palette.grey[900]}B0` },
                 }}
               >
-                <Iconify icon="carbon:close" />
+                <CloseIcon sx={{ fontSize: 20 }} />
               </IconButton>
 
               <ArtworkModalCarousel title={displayedItem.title} images={images} />

@@ -81,7 +81,8 @@ export type ArtistProfile = {
   yearsCreating: number;
 };
 
-export type ShopItem = {
+/** A top-level shop category, as shown on the homepage shop cards. */
+export type ShopCategory = {
   name: string;
   icon: string;
   content: string;
@@ -114,6 +115,7 @@ interface CategoryFields {
   slug: EntryFieldTypes.Symbol;
   description?: EntryFieldTypes.Text;
   parentCategory?: EntryFieldTypes.EntryLink<CategorySkeleton>;
+  showInApp?: EntryFieldTypes.Boolean;
 }
 type CategorySkeleton = EntrySkeletonType<CategoryFields, 'category'>;
 
@@ -127,6 +129,7 @@ interface ArtworkFields {
   coverImage?: EntryFieldTypes.AssetLink;
   images?: EntryFieldTypes.Array<EntryFieldTypes.AssetLink>;
   featured?: EntryFieldTypes.Boolean;
+  showInApp?: EntryFieldTypes.Boolean;
 }
 type ArtworkSkeleton = EntrySkeletonType<ArtworkFields, 'artwork'>;
 
@@ -138,29 +141,35 @@ interface ArtistFields {
   piecesSold?: EntryFieldTypes.Integer;
   followers?: EntryFieldTypes.Integer;
   yearsCreating?: EntryFieldTypes.Integer;
+  showInApp?: EntryFieldTypes.Boolean;
 }
 type ArtistSkeleton = EntrySkeletonType<ArtistFields, 'artist'>;
 
-interface ShopItemFields {
+interface ShopCategoryFields {
   name: EntryFieldTypes.Symbol;
+  slug: EntryFieldTypes.Symbol;
+  parentCategory?: EntryFieldTypes.EntryLink<ShopCategorySkeleton>;
+  description?: EntryFieldTypes.Text;
   icon?: EntryFieldTypes.Symbol;
-  content?: EntryFieldTypes.Text;
-  path?: EntryFieldTypes.Symbol;
   order?: EntryFieldTypes.Integer;
+  showInApp?: EntryFieldTypes.Boolean;
 }
-type ShopItemSkeleton = EntrySkeletonType<ShopItemFields, 'shopItem'>;
+type ShopCategorySkeleton = EntrySkeletonType<ShopCategoryFields, 'shopCategory'>;
 
 interface FaqFields {
   question: EntryFieldTypes.Symbol;
   answer: EntryFieldTypes.Text;
   order?: EntryFieldTypes.Integer;
+  showInApp?: EntryFieldTypes.Boolean;
 }
 type FaqSkeleton = EntrySkeletonType<FaqFields, 'faq'>;
 
 // -----------------------------------------------------------------------
 // Fetchers — each resolves to [] / undefined (never throws) so callers can
 // fall back to local placeholder data when Contentful isn't reachable or
-// simply has no entries yet.
+// simply has no entries yet. Every query only returns entries switched on
+// with showInApp (the admin panel's "Show in App"), so content can be
+// added ahead of time and revealed later.
 // -----------------------------------------------------------------------
 
 export async function getCategories(): Promise<Category[]> {
@@ -168,20 +177,56 @@ export async function getCategories(): Promise<Category[]> {
   try {
     const res = await contentfulClient.getEntries<CategorySkeleton>({
       content_type: 'category',
+      'fields.showInApp': true,
       order: ['fields.name'],
     });
-    return res.items.map((item) => ({
+    const categories: Category[] = res.items.map((item) => ({
       id: item.sys.id,
       name: item.fields.name,
       slug: item.fields.slug,
       description: item.fields.description,
       parentId: item.fields.parentCategory?.sys?.id,
     }));
+    return withoutHiddenAncestors(categories);
   } catch (err) {
     // eslint-disable-next-line no-console
     console.error('[contentful] getCategories failed:', err);
     return [];
   }
+}
+
+/**
+ * The query already drops hidden categories; this also drops any whose
+ * parent (or grandparent, ...) is hidden - hiding Prints hides Artist Books.
+ */
+function withoutHiddenAncestors(categories: Category[]): Category[] {
+  const byId = new Map(categories.map((c) => [c.id, c]));
+  const isVisible = (category: Category) => {
+    const seen = new Set<string>();
+    for (let current = category; current.parentId; ) {
+      if (seen.has(current.id)) return false; // malformed parent loop
+      seen.add(current.id);
+      const parent = byId.get(current.parentId);
+      if (!parent) return false;
+      current = parent;
+    }
+    return true;
+  };
+  return categories.filter(isVisible);
+}
+
+/**
+ * A category linked from an artwork arrives through the include, not the
+ * filtered category query, so check Show in App here - on it and, when
+ * resolved, its parent.
+ */
+function isShownLinkedCategory(cat: unknown): boolean {
+  if (!cat || typeof cat !== 'object' || !('fields' in cat)) return false;
+  const fields = (cat as { fields?: { showInApp?: boolean; parentCategory?: unknown } }).fields;
+  if (fields?.showInApp !== true) return false;
+  const parent = fields.parentCategory;
+  if (parent && typeof parent === 'object' && 'fields' in parent) return isShownLinkedCategory(parent);
+  return true;
 }
 
 /** Preferred display order for top-level categories; anything else sorts after these, alphabetically. */
@@ -217,15 +262,14 @@ export async function getArtworks(opts?: { featuredOnly?: boolean }): Promise<Ar
   try {
     const res = await contentfulClient.getEntries<ArtworkSkeleton>({
       content_type: 'artwork',
+      'fields.showInApp': true,
       include: 2,
       // Newest first — no more manually-maintained display order field.
       order: ['-sys.createdAt'],
       ...(opts?.featuredOnly ? { 'fields.featured': true } : {}),
     });
     return res.items.map((item) => {
-      const categoryEntries = (item.fields.categories ?? []).filter(
-        (cat) => cat && 'fields' in cat
-      );
+      const categoryEntries = (item.fields.categories ?? []).filter(isShownLinkedCategory);
       const categories = categoryEntries
         .map((cat) => ('fields' in cat ? cat.fields?.name : undefined))
         .filter((name): name is string => Boolean(name));
@@ -260,6 +304,7 @@ export async function getArtist(): Promise<ArtistProfile | undefined> {
   try {
     const res = await contentfulClient.getEntries<ArtistSkeleton>({
       content_type: 'artist',
+      'fields.showInApp': true,
       limit: 1,
     });
     const item = res.items[0];
@@ -280,22 +325,25 @@ export async function getArtist(): Promise<ArtistProfile | undefined> {
   }
 }
 
-export async function getShopItems(): Promise<ShopItem[]> {
+/** Top-level shop categories only - subcategories (those with a parent) group products, not homepage cards. */
+export async function getShopCategories(): Promise<ShopCategory[]> {
   if (!contentfulClient) return [];
   try {
-    const res = await contentfulClient.getEntries<ShopItemSkeleton>({
-      content_type: 'shopItem',
+    const res = await contentfulClient.getEntries<ShopCategorySkeleton>({
+      content_type: 'shopCategory',
+      'fields.showInApp': true,
+      'fields.parentCategory[exists]': false,
       order: ['fields.order'],
     });
     return res.items.map((item) => ({
       name: item.fields.name,
       icon: item.fields.icon ?? '',
-      content: item.fields.content ?? '',
-      path: item.fields.path ?? '#',
+      content: item.fields.description ?? '',
+      path: `/shop/${item.fields.slug}`,
     }));
   } catch (err) {
     // eslint-disable-next-line no-console
-    console.error('[contentful] getShopItems failed:', err);
+    console.error('[contentful] getShopCategories failed:', err);
     return [];
   }
 }
@@ -305,6 +353,7 @@ export async function getFaqs(): Promise<Faq[]> {
   try {
     const res = await contentfulClient.getEntries<FaqSkeleton>({
       content_type: 'faq',
+      'fields.showInApp': true,
       order: ['fields.order'],
     });
     return res.items.map((item) => ({

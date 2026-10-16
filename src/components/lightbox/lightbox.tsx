@@ -5,8 +5,13 @@ import Fullscreen from 'yet-another-react-lightbox/plugins/fullscreen';
 import ReactLightbox, { useLightboxState } from 'yet-another-react-lightbox';
 
 import Box from '@mui/material/Box';
-
-import Iconify from '../iconify';
+import CloseIcon from '@mui/icons-material/Close';
+import ZoomIn from '@mui/icons-material/ZoomIn';
+import ZoomOut from '@mui/icons-material/ZoomOut';
+import ChevronLeft from '@mui/icons-material/ChevronLeft';
+import ChevronRight from '@mui/icons-material/ChevronRight';
+import FullscreenExitIcon from '@mui/icons-material/FullscreenExit';
+import FullscreenIcon from '@mui/icons-material/Fullscreen';
 
 import StyledLightbox from './styles';
 import { LightBoxProps } from './types';
@@ -49,13 +54,13 @@ export default function Lightbox({
           ],
         }}
         render={{
-          iconClose: () => <Iconify width={ICON_SIZE} icon="carbon:close" />,
-          iconZoomIn: () => <Iconify width={ICON_SIZE} icon="carbon:zoom-in" />,
-          iconZoomOut: () => <Iconify width={ICON_SIZE} icon="carbon:zoom-out" />,
-          iconPrev: () => <Iconify width={ICON_SIZE + 8} icon="carbon:chevron-left" />,
-          iconNext: () => <Iconify width={ICON_SIZE + 8} icon="carbon:chevron-right" />,
-          iconExitFullscreen: () => <Iconify width={ICON_SIZE} icon="carbon:center-to-fit" />,
-          iconEnterFullscreen: () => <Iconify width={ICON_SIZE} icon="carbon:fit-to-screen" />,
+          iconClose: () => <CloseIcon sx={{ fontSize: ICON_SIZE }} />,
+          iconZoomIn: () => <ZoomIn sx={{ fontSize: ICON_SIZE }} />,
+          iconZoomOut: () => <ZoomOut sx={{ fontSize: ICON_SIZE }} />,
+          iconPrev: () => <ChevronLeft sx={{ fontSize: ICON_SIZE + 8 }} />,
+          iconNext: () => <ChevronRight sx={{ fontSize: ICON_SIZE + 8 }} />,
+          iconExitFullscreen: () => <FullscreenExitIcon sx={{ fontSize: ICON_SIZE }} />,
+          iconEnterFullscreen: () => <FullscreenIcon sx={{ fontSize: ICON_SIZE }} />,
         }}
         {...other}
       />

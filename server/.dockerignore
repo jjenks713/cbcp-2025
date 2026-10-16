@@ -1,0 +1,9 @@
+node_modules
+npm-debug.log
+# Local env files never go in the image - .env.local holds real credentials,
+# and Cloud Run supplies the real values at runtime.
+.env
+.env.*
+Dockerfile
+.dockerignore
+cloudbuild.yaml

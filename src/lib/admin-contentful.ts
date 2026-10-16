@@ -1,0 +1,125 @@
+import { request, withAuth } from './api';
+
+// Mirrors the shapes server/src/lib/contentfulFields.js produces: content
+// type schemas trimmed to what a form needs, and entry fields already
+// unwrapped from Contentful's per-locale/Link wrappers into flat values
+// (links are just the linked entry/asset id).
+
+type LinkType = 'Entry' | 'Asset';
+
+export type FieldDef = {
+  id: string;
+  name: string;
+  type: string;
+  required: boolean;
+  linkType?: LinkType;
+  linkContentTypes?: string[];
+  // Contentful regexp validation, e.g. shopItem.itemId's slug format
+  pattern?: { pattern: string; flags?: string; message?: string };
+  items?: {
+    type: string;
+    linkType?: LinkType;
+    linkContentTypes?: string[];
+  };
+};
+
+export type ContentType = {
+  id: string;
+  name: string;
+  displayField: string;
+  fields: FieldDef[];
+};
+
+export type FieldValue = string | number | boolean | string[] | null;
+
+export type Entry = {
+  id: string;
+  createdAt: string;
+  updatedAt: string;
+  fields: Record<string, FieldValue>;
+};
+
+export type Asset = {
+  id: string;
+  title: string;
+  url: string | null;
+};
+
+const BASE = '/api/admin/contentful';
+
+export function createAdminApi(token: string | null) {
+  const headers = withAuth(token);
+
+  return {
+    getContentTypes: () =>
+      request<{ contentTypes: ContentType[] }>(`${BASE}/content-types`, { headers }).then((r) => r.contentTypes),
+
+    getAssets: () => request<{ assets: Asset[] }>(`${BASE}/assets`, { headers }).then((r) => r.assets),
+
+    getEntries: (contentTypeId: string) =>
+      request<{ entries: Entry[] }>(`${BASE}/entries/${contentTypeId}`, { headers }).then((r) => r.entries),
+
+    createEntry: (contentTypeId: string, fields: Entry['fields']) =>
+      request<{ entry: Entry }>(`${BASE}/entries/${contentTypeId}`, {
+        method: 'POST',
+        headers,
+        body: JSON.stringify({ fields }),
+      }).then((r) => r.entry),
+
+    updateEntry: (contentTypeId: string, entryId: string, fields: Entry['fields']) =>
+      request<{ entry: Entry }>(`${BASE}/entries/${contentTypeId}/${entryId}`, {
+        method: 'PUT',
+        headers,
+        body: JSON.stringify({ fields }),
+      }).then((r) => r.entry),
+
+    deleteEntry: (contentTypeId: string, entryId: string) =>
+      request<void>(`${BASE}/entries/${contentTypeId}/${entryId}`, { method: 'DELETE', headers }),
+
+    uploadAsset: (file: File, title = file.name.replace(/\.[^.]+$/, '')) => {
+      const body = new FormData();
+      body.append('file', file);
+      body.append('title', title);
+      return request<{ asset: { id: string; url: string | null } }>(`${BASE}/assets`, {
+        method: 'POST',
+        headers,
+        body,
+      }).then((r): Asset => ({ id: r.asset.id, url: r.asset.url, title }));
+    },
+  };
+}
+
+export type AdminApi = ReturnType<typeof createAdminApi>;
+
+/** Contentful Images API resize, for small previews of full-size uploads. */
+export function thumbUrl(url: string | null, size = 160) {
+  return url ? `${url}?w=${size}&h=${size}&fit=thumb` : undefined;
+}
+
+/** The label an entry is known by - its content type's display field, e.g. a category's name. */
+export function entryLabel(entry: Entry | undefined, contentType: ContentType | undefined) {
+  const value = entry && contentType ? entry.fields[contentType.displayField] : null;
+  return value ? String(value) : 'Untitled';
+}
+
+/**
+ * entryLabel, prefixed with the parent's label for nestable types (category,
+ * shopCategory) so subcategories read unambiguously: "Stickers › Pokemon
+ * Stickers". The parent is looked up among the same type's entries.
+ */
+export function entryPathLabel(entry: Entry, contentType: ContentType | undefined, sameTypeEntries: Entry[] = []) {
+  const parentId = entry.fields.parentCategory;
+  const parent = typeof parentId === 'string' ? sameTypeEntries.find((e) => e.id === parentId) : undefined;
+  const label = entryLabel(entry, contentType);
+  return parent ? `${entryLabel(parent, contentType)} › ${label}` : label;
+}
+
+// "Custom Prints!" -> "custom-prints" - the format slug/itemId fields require.
+export function slugify(text: string) {
+  return text
+    .normalize('NFKD')
+    .replace(/[̀-ͯ]/g, '')
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, '-')
+    .replace(/^-+|-+$/g, '');
+}
