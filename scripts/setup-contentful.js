@@ -122,20 +122,78 @@ const CONTENT_TYPES = [
     ],
   },
   {
+    // Top-level categories are the homepage shop cards; set Parent Category
+    // to make a subcategory (Stickers -> Pokemon Stickers).
+    id: 'shopCategory',
+    name: 'Shop Category',
+    displayField: 'name',
+    fields: [
+      { id: 'name', name: 'Name', type: 'Symbol', required: true },
+      {
+        id: 'slug',
+        name: 'Slug',
+        type: 'Symbol',
+        required: true,
+        validations: [
+          { unique: true },
+          {
+            regexp: { pattern: '^[a-z0-9]+(-[a-z0-9]+)*$' },
+            message: 'Lowercase letters, numbers and single hyphens only, e.g. pokemon-stickers',
+          },
+        ],
+      },
+      {
+        id: 'parentCategory',
+        name: 'Parent Category',
+        type: 'Link',
+        linkType: 'Entry',
+        required: false,
+        validations: [{ linkContentType: ['shopCategory'] }],
+      },
+      { id: 'description', name: 'Description', type: 'Text', required: false },
+      { id: 'icon', name: 'Icon', type: 'Symbol', required: false },
+      { id: 'order', name: 'Display Order', type: 'Integer', required: false },
+    ],
+  },
+  {
     id: 'shopItem',
     name: 'Shop Item',
     displayField: 'name',
     fields: [
       { id: 'name', name: 'Name', type: 'Symbol', required: true },
       {
-        id: 'icon',
-        name: 'Icon (iconify id, e.g. carbon:image-copy)',
+        id: 'itemId',
+        name: 'Item ID',
         type: 'Symbol',
+        required: true,
+        validations: [
+          { unique: true },
+          {
+            regexp: { pattern: '^[a-z0-9]+(-[a-z0-9]+)*$' },
+            message: 'Lowercase letters, numbers and single hyphens only, e.g. custom-prints',
+          },
+        ],
+      },
+      {
+        id: 'category',
+        name: 'Category',
+        type: 'Link',
+        linkType: 'Entry',
+        required: true,
+        validations: [{ linkContentType: ['shopCategory'] }],
+      },
+      {
+        id: 'images',
+        name: 'Images',
+        type: 'Array',
         required: false,
+        items: {
+          type: 'Link',
+          linkType: 'Asset',
+          validations: [{ linkMimetypeGroup: ['image'] }],
+        },
       },
       { id: 'content', name: 'Description', type: 'Text', required: false },
-      { id: 'path', name: 'Link Path', type: 'Symbol', required: false },
-      { id: 'order', name: 'Display Order', type: 'Integer', required: false },
     ],
   },
   {
@@ -154,6 +212,18 @@ const CONTENT_TYPES = [
 // as an in-place field-type change (e.g. category: Link -> categories: Array
 // of Links). Safe to drop and recreate ONLY because no entries exist yet for
 // these types — never do this once real entries are depended on.
+// Every type gets "Show in App" (see scripts/add-show-in-app-field.js): the
+// site only shows entries with it switched on, and new entries start hidden.
+for (const def of CONTENT_TYPES) {
+  def.fields.push({
+    id: 'showInApp',
+    name: 'Show in App',
+    type: 'Boolean',
+    required: false,
+    defaultValue: { 'en-US': false },
+  });
+}
+
 const RECREATE_IDS = new Set(['artwork']);
 
 async function createOrSkip(client, def) {
