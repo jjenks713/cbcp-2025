@@ -3,8 +3,6 @@ import Card from '@mui/material/Card';
 import Stack from '@mui/material/Stack';
 import Button from '@mui/material/Button';
 import Divider from '@mui/material/Divider';
-import MenuItem from '@mui/material/MenuItem';
-import TextField from '@mui/material/TextField';
 import Container from '@mui/material/Container';
 import Typography from '@mui/material/Typography';
 import CircularProgress from '@mui/material/CircularProgress';
@@ -13,14 +11,13 @@ import { useCart } from '../../lib/cart-context';
 import { formatPrice } from '../../lib/format';
 import { RouterLink } from '../../components/RouterLink';
 import CartLineRow from './CartLineRow';
+import SimilarItems from './SimilarItems';
+import QuantityStepper from './QuantityStepper';
 import { useCartItems } from './use-cart-items';
 
-// Most of one item a cart can hold, before stock limits.
-const MAX_PER_ITEM = 10;
-
-// The full cart page (/cart): every item with a quantity picker and remove
-// button, plus an order summary. Layout after the Zone template's
-// ecommerce-cart-view (items left, summary right).
+// The full cart page (/cart): every line with a quantity stepper and remove
+// button, an order summary, and "You might also like" suggestions. Layout
+// after the Zone template's ecommerce-cart-view (items left, summary right).
 export default function Cart() {
   const { setQuantity, remove } = useCart();
   const { items, subtotal, loading } = useCartItems();
@@ -46,38 +43,27 @@ export default function Cart() {
       ) : (
         <Stack direction={{ xs: 'column', md: 'row' }} spacing={{ xs: 4, md: 8 }} alignItems="flex-start">
           <Box sx={{ flexGrow: 1, width: 1, minWidth: 0 }}>
-            {items.map((cartItem) => {
-              const max = Math.min(cartItem.item.stock, MAX_PER_ITEM);
-              return (
-                <Box key={cartItem.item.id} sx={{ borderBottom: 1, borderColor: 'divider' }}>
-                  <CartLineRow
-                    cartItem={cartItem}
-                    onRemove={() => remove(cartItem.item.id)}
-                    quantityControl={
-                      <Stack direction="row" alignItems="center" spacing={1.5}>
-                        <Typography variant="body2" sx={{ color: 'text.secondary' }}>
-                          {formatPrice(cartItem.item.price)} ×
-                        </Typography>
-                        <TextField
-                          select
-                          size="small"
-                          value={cartItem.quantity}
-                          onChange={(e) => setQuantity(cartItem.item.id, Number(e.target.value))}
-                          slotProps={{ htmlInput: { 'aria-label': `Quantity of ${cartItem.item.name}` } }}
-                          sx={{ width: 80 }}
-                        >
-                          {Array.from({ length: max }, (_, i) => i + 1).map((n) => (
-                            <MenuItem key={n} value={n}>
-                              {n}
-                            </MenuItem>
-                          ))}
-                        </TextField>
-                      </Stack>
-                    }
-                  />
-                </Box>
-              );
-            })}
+            {items.map((cartItem) => (
+              <Box key={cartItem.key} sx={{ borderBottom: 1, borderColor: 'divider' }}>
+                <CartLineRow
+                  cartItem={cartItem}
+                  onRemove={() => remove(cartItem.key)}
+                  quantityControl={
+                    <Stack direction="row" alignItems="center" spacing={1.5}>
+                      <Typography variant="body2" sx={{ color: 'text.secondary' }}>
+                        {formatPrice(cartItem.price)}
+                      </Typography>
+                      <QuantityStepper
+                        value={cartItem.quantity}
+                        max={cartItem.maxQuantity}
+                        onChange={(quantity) => setQuantity(cartItem.key, quantity)}
+                        itemName={cartItem.item.name}
+                      />
+                    </Stack>
+                  }
+                />
+              </Box>
+            ))}
           </Box>
 
           <Card sx={{ p: 3, width: { xs: 1, md: 340 }, flexShrink: 0, bgcolor: 'background.default' }}>
@@ -107,6 +93,12 @@ export default function Cart() {
             </Stack>
           </Card>
         </Stack>
+      )}
+
+      {!loading && (
+        <Box sx={{ mt: { xs: 6, md: 10 } }}>
+          <SimilarItems />
+        </Box>
       )}
     </Container>
   );
