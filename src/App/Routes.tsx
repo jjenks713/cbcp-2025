@@ -6,6 +6,8 @@ import Main from "../Features/Main";
 import Gallery from "../Features/Gallery";
 import Login from "../Features/Login";
 import Account from "../Features/Account";
+import Admin from "../Features/Admin/Admin";
+import AuthRerouteProvider from "./AuthProvider";
 
 const routes = [
     {
@@ -21,8 +23,13 @@ const routes = [
                 element: <Gallery />,
             },
             {
-                path: "login",
-                element: <Login />,
+                element: <AuthRerouteProvider />,
+                children: [
+                    {
+                        path: "login",
+                        element: <Login />,
+                    },
+                ],
             },
             {
                 element: <RequireAuth />,
@@ -30,6 +37,15 @@ const routes = [
                     {
                         path: "account",
                         element: <Account />,
+                    },
+                ],
+            },
+            {
+                element: <RequireAuth role="admin" />,
+                children: [
+                    {
+                        path: "admin",
+                        element: <Admin />,
                     },
                 ],
             },

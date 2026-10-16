@@ -8,8 +8,8 @@ import Typography from '@mui/material/Typography';
 import { useAuth } from '../lib/auth-context';
 
 // Proves the login flow end-to-end. Order history / profile editing for
-// regular users and the Contentful-editing admin panel are separate,
-// not-yet-built features.
+// regular users is a separate, not-yet-built feature; admins edit content
+// at /admin.
 export default function Account() {
   const navigate = useNavigate();
   const { user, logout } = useAuth();
