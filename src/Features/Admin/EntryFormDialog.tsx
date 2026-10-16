@@ -8,6 +8,7 @@ import Dialog from '@mui/material/Dialog';
 import Switch from '@mui/material/Switch';
 import MenuItem from '@mui/material/MenuItem';
 import TextField from '@mui/material/TextField';
+import InputAdornment from '@mui/material/InputAdornment';
 import DialogTitle from '@mui/material/DialogTitle';
 import Autocomplete from '@mui/material/Autocomplete';
 import DialogActions from '@mui/material/DialogActions';
@@ -21,6 +22,7 @@ import {
   slugify,
   entryLabel,
   entryPathLabel,
+  isGeneratedField,
   type Asset,
   type Entry,
   type FieldDef,
@@ -43,7 +45,8 @@ type Props = {
 type Values = Record<string, FieldValue>;
 
 // Slug-style field per content type, auto-filled from the name on new entries.
-const SLUG_FIELDS: Record<string, string> = { shopItem: 'itemId', shopCategory: 'slug', category: 'slug' };
+// (A shop item's ID isn't one - the API generates it.)
+const SLUG_FIELDS: Record<string, string> = { shopCategory: 'slug', category: 'slug' };
 
 const isAssetField = (field: FieldDef) => field.linkType === 'Asset' || field.items?.linkType === 'Asset';
 const isNumberField = (field: FieldDef) => field.type === 'Integer' || field.type === 'Number';
@@ -67,8 +70,12 @@ function validate(fields: FieldDef[], values: Values) {
       errors[field.id] = `${field.name} is required`;
     } else if (isNumberField(field) && !isEmpty(value)) {
       const n = Number(value);
+      const { min, max, message } = field.range ?? {};
       if (Number.isNaN(n) || (field.type === 'Integer' && !Number.isInteger(n))) {
         errors[field.id] = field.type === 'Integer' ? 'Must be a whole number' : 'Must be a number';
+      } else if ((min != null && n < min) || (max != null && n > max)) {
+        errors[field.id] =
+          message || (max == null ? `Must be at least ${min}` : min == null ? `Must be at most ${max}` : `Must be ${min}–${max}`);
       }
     } else if (field.pattern && typeof value === 'string' && value) {
       if (!new RegExp(field.pattern.pattern, field.pattern.flags).test(value)) {
@@ -104,6 +111,8 @@ export default function EntryFormDialog({
   // ID is what orders will reference.
   const slugField = entry ? undefined : SLUG_FIELDS[contentType.id];
   const [slugEdited, setSlugEdited] = useState(false);
+  // Generated fields are left out of validation and saving - the API owns them.
+  const editableFields = contentType.fields.filter((field) => !isGeneratedField(contentType.id, field.id));
 
   const setValue = (id: string, value: FieldValue) => {
     const changed: Values = { [id]: value };
@@ -138,12 +147,12 @@ export default function EntryFormDialog({
 
   const handleSubmit = async (event: FormEvent) => {
     event.preventDefault();
-    const nextErrors = validate(contentType.fields, values);
+    const nextErrors = validate(editableFields, values);
     setErrors(nextErrors);
     if (Object.keys(nextErrors).length) return;
 
     const fields = Object.fromEntries(
-      contentType.fields.map((field) => {
+      editableFields.map((field) => {
         const value = values[field.id];
         return [field.id, isNumberField(field) ? (isEmpty(value) ? null : Number(value)) : value];
       })
@@ -169,6 +178,21 @@ export default function EntryFormDialog({
       fullWidth: true,
       disabled: saving,
     };
+
+    // Not there yet on a new entry; afterwards shown so it can be copied.
+    if (isGeneratedField(contentType.id, field.id)) {
+      if (!entry) return null;
+      return (
+        <TextField
+          key={field.id}
+          label={field.name}
+          value={value ?? ''}
+          helperText="Generated automatically - can't be changed"
+          fullWidth
+          slotProps={{ input: { readOnly: true } }}
+        />
+      );
+    }
 
     if (isAssetField(field)) {
       const ids = Array.isArray(value) ? value : value ? [String(value)] : [];
@@ -277,6 +301,18 @@ export default function EntryFormDialog({
         minRows={field.type === 'Text' ? 3 : undefined}
         value={value ?? ''}
         onChange={(e) => setValue(field.id, e.target.value)}
+        slotProps={
+          isNumberField(field)
+            ? {
+                input: field.id === 'price' ? { startAdornment: <InputAdornment position="start">$</InputAdornment> } : undefined,
+                htmlInput: {
+                  min: field.range?.min,
+                  max: field.range?.max,
+                  step: field.type === 'Integer' ? 1 : field.id === 'price' ? 0.01 : 'any',
+                },
+              }
+            : undefined
+        }
       />
     );
   };

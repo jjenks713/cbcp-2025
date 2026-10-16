@@ -10,6 +10,7 @@ import TextField from '@mui/material/TextField';
 import IconButton from '@mui/material/IconButton';
 import Typography from '@mui/material/Typography';
 import DialogTitle from '@mui/material/DialogTitle';
+import InputAdornment from '@mui/material/InputAdornment';
 import DialogActions from '@mui/material/DialogActions';
 import DialogContent from '@mui/material/DialogContent';
 import CircularProgress from '@mui/material/CircularProgress';
@@ -18,7 +19,8 @@ import CheckCircleIcon from '@mui/icons-material/CheckCircle';
 import AddPhotoAlternateIcon from '@mui/icons-material/AddPhotoAlternate';
 
 import { useResponsive } from '../../hooks/use-responsive';
-import { slugify, type Asset, type Entry, type FieldDef } from '../../lib/admin-contentful';
+import { type Asset, type Entry } from '../../lib/admin-contentful';
+import { type BulkAddConfig, type BulkField } from './bulkAddConfigs';
 
 type Status = 'ready' | 'uploading' | 'creating' | 'done' | 'error';
 
@@ -27,8 +29,8 @@ type Row = {
   file: File;
   preview: string;
   name: string;
-  itemId: string;
-  itemIdEdited: boolean;
+  // Raw input per config.rowFields id, converted by config.toFields.
+  values: Record<string, string>;
   status: Status;
   error?: string;
   // Kept after a successful upload so a retry doesn't upload the image twice.
@@ -36,10 +38,8 @@ type Row = {
 };
 
 type Props = {
+  config: BulkAddConfig;
   categoryOptions: { id: string; label: string }[];
-  // Item IDs already taken by existing shop items
-  existingItemIds: string[];
-  itemIdField?: FieldDef;
   onUpload: (file: File, title: string) => Promise<Asset>;
   onCreate: (fields: Entry['fields']) => Promise<Entry>;
   onClose: () => void;
@@ -61,25 +61,38 @@ function nameFromFile(fileName: string) {
     .join(' ');
 }
 
+// 'Required' means not filled in yet - not shown as an error, just counted.
+// Other messages are kept short; they show under narrow fields. Price/count
+// rules match the shopItem schema (scripts/add-shop-price-stock.js).
+function fieldError(field: BulkField, value: string) {
+  if (!value.trim()) return field.required ? 'Required' : '';
+  const n = Number(value);
+  if (field.kind === 'price') return Number.isNaN(n) || n < 0 ? '0 or more' : '';
+  if (field.kind === 'count') return !Number.isInteger(n) || n < 0 ? 'Whole number' : '';
+  return '';
+}
+
+// Only real mistakes go red - a field that's just empty isn't one yet.
+const shownError = (error?: string) => (error && error !== 'Required' ? error : undefined);
+
+const plural = ([one, many]: [string, string], n: number) => `${n} ${n === 1 ? one : many}`;
+
 let rowCounter = 0;
 
-// One shop item per image, all in the same category - e.g. a whole sheet of
-// Pokemon stickers at once. Names/IDs come from the filenames and can be
-// fixed up before anything is created.
-export default function BulkAddDialog({
-  categoryOptions,
-  existingItemIds,
-  itemIdField,
-  onUpload,
-  onCreate,
-  onClose,
-}: Props) {
+// One entry per image, all in the same category (or categories) - e.g. a
+// whole sheet of Pokemon stickers, or a set of drawings. Each image becomes
+// a row with its own name (from the filename) and the type's extra fields
+// (price/stock for shop items, medium/size for artwork). Nothing is
+// uploaded or created until every row is complete and "Create & publish"
+// is pressed. Field setup per content type lives in bulkAddConfigs.ts.
+export default function BulkAddDialog({ config, categoryOptions, onUpload, onCreate, onClose }: Props) {
   const fullScreen = useResponsive('down', 'sm');
-  const [category, setCategory] = useState('');
+  const [categoryIds, setCategoryIds] = useState<string[]>([]);
   const [rows, setRows] = useState<Row[]>([]);
   const [running, setRunning] = useState(false);
   const [dragOver, setDragOver] = useState(false);
-  const [showErrors, setShowErrors] = useState(false);
+  // "Apply to all" inputs - fill a field on every row in one go.
+  const [allValues, setAllValues] = useState<Record<string, string>>({});
   const fileInput = useRef<HTMLInputElement>(null);
 
   // Free the preview object URLs when the dialog goes away.
@@ -89,20 +102,24 @@ export default function BulkAddDialog({
     return () => urls.forEach((url) => URL.revokeObjectURL(url));
   }, []);
 
+  const emptyValues = () => Object.fromEntries(config.rowFields.map((field) => [field.id, '']));
+
   const addFiles = (files: File[]) => {
     const images = files.filter((file) => file.type.startsWith('image/'));
     const added = images.map((file): Row => {
       const preview = URL.createObjectURL(file);
       previews.current.add(preview);
-      const name = nameFromFile(file.name);
       rowCounter += 1;
-      return { key: `row-${rowCounter}`, file, preview, name, itemId: slugify(name), itemIdEdited: false, status: 'ready' };
+      return { key: `row-${rowCounter}`, file, preview, name: nameFromFile(file.name), values: emptyValues(), status: 'ready' };
     });
     setRows((prev) => [...prev, ...added]);
   };
 
   const updateRow = (key: string, patch: Partial<Row>) =>
     setRows((prev) => prev.map((row) => (row.key === key ? { ...row, ...patch } : row)));
+
+  const setRowValue = (row: Row, fieldId: string, value: string) =>
+    updateRow(row.key, { values: { ...row.values, [fieldId]: value } });
 
   const removeRow = (row: Row) => {
     URL.revokeObjectURL(row.preview);
@@ -113,36 +130,48 @@ export default function BulkAddDialog({
   const pending = rows.filter((row) => row.status !== 'done');
   const doneCount = rows.length - pending.length;
 
-  // Per-row problems with name/ID - checked against each other and against
-  // existing items, since Contentful would reject a duplicate ID anyway.
-  const rowErrors = (() => {
-    const errors: Record<string, { name?: string; itemId?: string }> = {};
-    const pattern = itemIdField?.pattern ? new RegExp(itemIdField.pattern.pattern, itemIdField.pattern.flags) : null;
-    const taken = new Set(existingItemIds);
-    const counts = new Map<string, number>();
-    rows.forEach((row) => counts.set(row.itemId, (counts.get(row.itemId) ?? 0) + 1));
-
-    for (const row of pending) {
-      const e: { name?: string; itemId?: string } = {};
-      if (!row.name.trim()) e.name = 'Required';
-      if (!row.itemId) e.itemId = 'Required';
-      else if (pattern && !pattern.test(row.itemId)) e.itemId = itemIdField?.pattern?.message || 'Invalid format';
-      else if (taken.has(row.itemId)) e.itemId = 'Already used by an existing item';
-      else if ((counts.get(row.itemId) ?? 0) > 1) e.itemId = 'Duplicated in this batch';
-      if (e.name || e.itemId) errors[row.key] = e;
-    }
+  const errorsFor = (row: Row) => {
+    const errors: Record<string, string> = { name: row.name.trim() ? '' : 'Required' };
+    config.rowFields.forEach((field) => {
+      errors[field.id] = fieldError(field, row.values[field.id] ?? '');
+    });
     return errors;
-  })();
+  };
+  const rowErrors = new Map(pending.map((row) => [row.key, errorsFor(row)]));
+  const incomplete = pending.filter((row) => Object.values(rowErrors.get(row.key) ?? {}).some(Boolean)).length;
+  const canCreate = categoryIds.length > 0 && pending.length > 0 && incomplete === 0;
+
+  // "a name, price and stock" / "a title"
+  const requiredLabels = [config.nameLabel, ...config.rowFields.filter((f) => f.required).map((f) => f.label)].map(
+    (label) => label.toLowerCase()
+  );
+  const needs =
+    requiredLabels.length > 1
+      ? `${requiredLabels.slice(0, -1).join(', ')} and ${requiredLabels[requiredLabels.length - 1]}`
+      : requiredLabels[0];
+
+  // Why "Create & publish" is still disabled, shown beside it.
+  const blocker = !categoryIds.length
+    ? `Choose ${config.multipleCategories ? 'at least one category' : 'a category'}`
+    : !rows.length
+      ? 'Add some images'
+      : incomplete
+        ? `${plural(config.noun, incomplete)} still need${incomplete === 1 ? 's' : ''} a ${needs}, or ha${incomplete === 1 ? 's' : 've'} an invalid value`
+        : '';
+
+  const applyToAll = () => {
+    const filled = Object.fromEntries(Object.entries(allValues).filter(([, value]) => value.trim()));
+    setRows((prev) => prev.map((row) => (row.status === 'done' ? row : { ...row, values: { ...row.values, ...filled } })));
+  };
 
   const handleCreate = async () => {
-    setShowErrors(true);
-    if (!category || !pending.length || Object.keys(rowErrors).length) return;
+    if (!canCreate) return;
 
     setRunning(true);
     const queue = [...pending];
     const worker = async () => {
       for (let row = queue.shift(); row; row = queue.shift()) {
-        const { key, file, name, itemId } = row;
+        const { key, file, name, values } = row;
         let { assetId } = row;
         try {
           if (!assetId) {
@@ -151,8 +180,7 @@ export default function BulkAddDialog({
             updateRow(key, { assetId });
           }
           updateRow(key, { status: 'creating', error: undefined });
-          // Hidden until switched on from the table, like any new entry.
-          await onCreate({ name: name.trim(), itemId, category, images: [assetId], showInApp: false });
+          await onCreate(config.toFields({ name: name.trim(), values, categoryIds, assetId }));
           updateRow(key, { status: 'done' });
         } catch (err) {
           updateRow(key, { status: 'error', error: err instanceof Error ? err.message : 'Failed' });
@@ -171,25 +199,54 @@ export default function BulkAddDialog({
 
   const failed = rows.filter((row) => row.status === 'error').length;
   const allDone = rows.length > 0 && doneCount === rows.length;
+  const categoryLabel = new Map(categoryOptions.map((option) => [option.id, option.label]));
+
+  // One price/count/text input - used per row and in the "apply to all" row.
+  const fieldInput = (field: BulkField, value: string, onChange: (value: string) => void, disabled: boolean, error?: string) => (
+    <TextField
+      key={field.id}
+      size="small"
+      label={field.label}
+      type={field.kind === 'text' ? 'text' : 'number'}
+      value={value}
+      disabled={disabled}
+      error={Boolean(error)}
+      helperText={error}
+      onChange={(e) => onChange(e.target.value)}
+      slotProps={{
+        input:
+          field.kind === 'price' ? { startAdornment: <InputAdornment position="start">$</InputAdornment> } : undefined,
+        htmlInput: field.kind === 'text' ? undefined : { min: 0, step: field.kind === 'price' ? 0.01 : 1 },
+      }}
+      sx={{ width: { sm: field.width } }}
+    />
+  );
 
   return (
     <Dialog open fullWidth maxWidth="md" fullScreen={fullScreen} onClose={running ? undefined : onClose}>
-      <DialogTitle>Bulk Add Shop Items</DialogTitle>
+      <DialogTitle>{config.title}</DialogTitle>
       <DialogContent dividers>
         <Stack spacing={2.5} sx={{ py: 1 }}>
           <TextField
             select
             required
-            label="Category"
-            value={category}
-            onChange={(e) => setCategory(e.target.value)}
+            label={config.categoryLabel}
+            value={config.multipleCategories ? categoryIds : (categoryIds[0] ?? '')}
+            onChange={(e) => {
+              const value = e.target.value as string | string[];
+              setCategoryIds(Array.isArray(value) ? value : value ? [value] : []);
+            }}
             disabled={running}
-            error={showErrors && !category}
-            helperText={
-              showErrors && !category
-                ? 'Choose a category'
-                : 'Every item below goes into this category - usually a subcategory, e.g. Stickers › Pokemon Stickers'
-            }
+            helperText={config.categoryHelp}
+            slotProps={{
+              select: config.multipleCategories
+                ? {
+                    multiple: true,
+                    renderValue: (selected) =>
+                      (selected as string[]).map((id) => categoryLabel.get(id) ?? 'Unknown').join(', '),
+                  }
+                : undefined,
+            }}
             fullWidth
           >
             {categoryOptions.map((option) => (
@@ -228,7 +285,9 @@ export default function BulkAddDialog({
           >
             <AddPhotoAlternateIcon sx={{ fontSize: 40, mb: 1 }} />
             <Typography>Drop images here, or click to choose</Typography>
-            <Typography variant="caption">One shop item is created per image, named from its filename</Typography>
+            <Typography variant="caption">
+              One {config.noun[0]} is created per image, named from its filename
+            </Typography>
             <input
               ref={fileInput}
               hidden
@@ -242,13 +301,35 @@ export default function BulkAddDialog({
             />
           </Box>
 
-          {showErrors && !rows.length && <Alert severity="error">Add at least one image</Alert>}
+          {rows.length > 1 && pending.length > 0 && (
+            <Stack direction="row" spacing={1.5} alignItems="center" flexWrap="wrap" useFlexGap>
+              <Typography variant="body2" sx={{ color: 'text.secondary' }}>
+                Same for every {config.noun[0]}?
+              </Typography>
+              {config.rowFields.map((field) =>
+                fieldInput(
+                  field,
+                  allValues[field.id] ?? '',
+                  (value) => setAllValues((prev) => ({ ...prev, [field.id]: value })),
+                  running
+                )
+              )}
+              <Button
+                size="small"
+                variant="outlined"
+                onClick={applyToAll}
+                disabled={running || !Object.values(allValues).some((value) => value.trim())}
+              >
+                Apply to all
+              </Button>
+            </Stack>
+          )}
 
           {rows.length > 0 && (
             <Stack spacing={1.5}>
               {rows.map((row) => {
                 const locked = running || row.status === 'done';
-                const errors = showErrors ? rowErrors[row.key] : undefined;
+                const errors = rowErrors.get(row.key);
                 return (
                   <Stack key={row.key} direction="row" spacing={1.5} alignItems="flex-start">
                     <Box
@@ -260,37 +341,45 @@ export default function BulkAddDialog({
                     <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1} sx={{ flex: 1, minWidth: 0 }}>
                       <TextField
                         size="small"
-                        label="Name"
+                        label={config.nameLabel}
                         value={row.name}
                         disabled={locked}
-                        error={Boolean(errors?.name)}
-                        helperText={errors?.name}
-                        onChange={(e) =>
-                          updateRow(row.key, {
-                            name: e.target.value,
-                            ...(!row.itemIdEdited && { itemId: slugify(e.target.value) }),
-                          })
-                        }
-                        sx={{ flex: 1 }}
+                        error={Boolean(shownError(errors?.name))}
+                        helperText={shownError(errors?.name)}
+                        onChange={(e) => updateRow(row.key, { name: e.target.value })}
+                        sx={{ flex: 1, minWidth: 0 }}
                       />
-                      <TextField
-                        size="small"
-                        label="Item ID"
-                        value={row.itemId}
-                        disabled={locked}
-                        error={Boolean(errors?.itemId)}
-                        helperText={errors?.itemId}
-                        onChange={(e) => updateRow(row.key, { itemId: e.target.value, itemIdEdited: true })}
-                        sx={{ flex: 1 }}
-                      />
+                      {config.rowFields.map((field) =>
+                        fieldInput(
+                          field,
+                          row.values[field.id] ?? '',
+                          (value) => setRowValue(row, field.id, value),
+                          locked,
+                          shownError(errors?.[field.id])
+                        )
+                      )}
                     </Stack>
-                    <Box sx={{ width: 40, height: 40, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+                    <Box
+                      sx={{
+                        width: 40,
+                        height: 40,
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        flexShrink: 0,
+                      }}
+                    >
                       {row.status === 'done' && <CheckCircleIcon color="success" aria-label="Created" />}
                       {(row.status === 'uploading' || row.status === 'creating') && (
                         <CircularProgress size={22} aria-label={row.status === 'uploading' ? 'Uploading' : 'Creating'} />
                       )}
                       {(row.status === 'ready' || row.status === 'error') && (
-                        <IconButton size="small" aria-label={`Remove ${row.name}`} disabled={running} onClick={() => removeRow(row)}>
+                        <IconButton
+                          size="small"
+                          aria-label={`Remove ${row.name}`}
+                          disabled={running}
+                          onClick={() => removeRow(row)}
+                        >
                           <CloseIcon fontSize="small" />
                         </IconButton>
                       )}
@@ -312,23 +401,28 @@ export default function BulkAddDialog({
           {!running && doneCount > 0 && (
             <Alert severity={failed ? 'warning' : 'success'}>
               {allDone
-                ? `All ${doneCount} items created and published.`
+                ? `All ${plural(config.noun, doneCount)} created and published.`
                 : `${doneCount} of ${rows.length} created.${failed ? ' Fix the errors above and create the rest.' : ''}`}
             </Alert>
           )}
         </Stack>
       </DialogContent>
-      <DialogActions sx={{ px: 3, py: 2 }}>
+      <DialogActions sx={{ px: 3, py: 2, gap: 1 }}>
+        {!allDone && !running && blocker && (
+          <Typography variant="body2" sx={{ color: 'text.secondary', mr: 'auto' }}>
+            {blocker}
+          </Typography>
+        )}
         <Button onClick={onClose} disabled={running}>
           {allDone ? 'Done' : 'Cancel'}
         </Button>
         {!allDone && (
-          <Button variant="contained" onClick={handleCreate} disabled={running}>
+          <Button variant="contained" onClick={handleCreate} disabled={running || !canCreate}>
             {running
               ? `Creating… (${doneCount}/${rows.length})`
               : pending.length
-                ? `Create ${pending.length} item${pending.length === 1 ? '' : 's'}`
-                : 'Create items'}
+                ? `Create & publish ${plural(config.noun, pending.length)}`
+                : 'Create & publish'}
           </Button>
         )}
       </DialogActions>

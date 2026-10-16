@@ -14,8 +14,10 @@ export type FieldDef = {
   required: boolean;
   linkType?: LinkType;
   linkContentTypes?: string[];
-  // Contentful regexp validation, e.g. shopItem.itemId's slug format
+  // Contentful regexp validation, e.g. shopCategory.slug's format
   pattern?: { pattern: string; flags?: string; message?: string };
+  // Contentful range validation (numbers), e.g. shopItem.price's min of 0
+  range?: { min?: number; max?: number; message?: string };
   items?: {
     type: string;
     linkType?: LinkType;
@@ -44,6 +46,19 @@ export type Asset = {
   title: string;
   url: string | null;
 };
+
+// Fields the API generates on create and ignores on save - a shop item's
+// ID is what orders will reference, so it's never typed in or changed.
+// Mirrors GENERATED_FIELDS in server/src/routes/admin-contentful.js.
+export const GENERATED_FIELDS: Record<string, string[]> = { shopItem: ['itemId'] };
+
+export const isGeneratedField = (contentTypeId: string, fieldId: string) =>
+  GENERATED_FIELDS[contentTypeId]?.includes(fieldId) ?? false;
+
+/** 4.5 -> "$4.50" */
+export function formatPrice(value: number) {
+  return value.toLocaleString('en-US', { style: 'currency', currency: 'USD' });
+}
 
 const BASE = '/api/admin/contentful';
 
@@ -114,7 +129,7 @@ export function entryPathLabel(entry: Entry, contentType: ContentType | undefine
   return parent ? `${entryLabel(parent, contentType)} › ${label}` : label;
 }
 
-// "Custom Prints!" -> "custom-prints" - the format slug/itemId fields require.
+// "Custom Prints!" -> "custom-prints" - the format slug fields require.
 export function slugify(text: string) {
   return text
     .normalize('NFKD')
