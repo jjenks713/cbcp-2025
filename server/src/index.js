@@ -8,6 +8,7 @@ const cors = require('cors');
 
 const { connectDB } = require('./db');
 const authRoutes = require('./routes/auth');
+const adminContentfulRoutes = require('./routes/admin-contentful');
 
 const app = express();
 app.use(cors());
@@ -18,6 +19,7 @@ app.get('/health', (req, res) => {
 });
 
 app.use('/api/auth', authRoutes);
+app.use('/api/admin/contentful', adminContentfulRoutes);
 
 const PORT = process.env.PORT || 8080;
 
