@@ -17,20 +17,21 @@ import type { Theme } from '@mui/material/styles';
 import TextMaxLine from '../../components/text-max-line';
 import { MotionViewport, varFade, varZoom } from '../../components/animate';
 import { useContentfulList } from '../../hooks/useContentfulData';
-import { getShopItems } from '../../lib/contentful';
+import { getShopCategories } from '../../lib/contentful';
 import { ETSY_SHOP_URL } from '../../lib/links';
 
 // 'secondary' is deliberately excluded — it's the theme's near-black
 // background color (#262626), not a usable accent against a dark card.
 const COLORS = ['primary', 'info', 'success', 'warning'] as const;
 
-// The "icon" field on a Contentful shop item is free text, so it has to be
+// The "icon" field on a Contentful shop category is free text, so it has to be
 // mapped to a fixed MUI icon rather than rendered directly (unlike Iconify,
 // which could render any icon name as-is). Keyed by the exact string values
 // already used in Contentful/FALLBACK_PRODUCTS below, so existing content
 // keeps working; anything else - e.g. a new value a content editor types in
-// without knowing this list - falls back to DEFAULT_SHOP_ICON.
-const SHOP_ICONS: Record<string, ElementType> = {
+// without knowing this list - falls back to DEFAULT_SHOP_ICON. The admin
+// panel offers exactly these keys as choices for that field.
+export const SHOP_ICONS: Record<string, ElementType> = {
   'carbon:image-copy': PhotoLibraryIcon,
   'ph:paint-brush-bold': BrushIcon,
   'ph:sticker-bold': LabelIcon,
@@ -66,7 +67,7 @@ const FALLBACK_PRODUCTS = [
 ];
 
 export default function CBCPShop() {
-  const PRODUCTS = useContentfulList(getShopItems, FALLBACK_PRODUCTS);
+  const PRODUCTS = useContentfulList(getShopCategories, FALLBACK_PRODUCTS);
 
   return (
     <Container component={MotionViewport} sx={{ py: { xs: 5, md: 10 } }}>
