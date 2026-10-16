@@ -14,8 +14,10 @@ import { inputBaseClasses } from '@mui/material/InputBase';
 import { inputLabelClasses } from '@mui/material/InputLabel';
 import { alpha, styled, useTheme } from '@mui/material/styles';
 import { TextFieldProps } from '@mui/material/TextField';
+import EmailIcon from '@mui/icons-material/Email';
+import InstagramIcon from '@mui/icons-material/Instagram';
+import ShoppingBagIcon from '@mui/icons-material/ShoppingBag';
 
-import Iconify from '../../components/iconify';
 import { bgGradient } from '../../Theme/css';
 import { MotionViewport, varFade, varTranEnter } from '../../components/animate';
 import { ETSY_SHOP_URL } from '../../lib/links';
@@ -123,7 +125,7 @@ export default function CBCPContact() {
               justifyContent={{ xs: 'center', md: 'flex-start' }}
               sx={{ color: 'common.white', mb: 2 }}
             >
-              <Iconify icon="carbon:email" width={24} sx={{ mr: 2 }} />
+              <EmailIcon sx={{ fontSize: 24, mr: 2 }} />
               <Link color="inherit" href="mailto:creepybutcutepress@gmail.com">
                 creepybutcutepress@gmail.com
               </Link>
@@ -137,7 +139,7 @@ export default function CBCPContact() {
               justifyContent={{ xs: 'center', md: 'flex-start' }}
               sx={{ color: 'common.white', mb: 2 }}
             >
-              <Iconify icon="mdi:instagram" width={24} sx={{ mr: 2 }} />
+              <InstagramIcon sx={{ fontSize: 24, mr: 2 }} />
               <Link color="inherit" href="https://instagram.com/creepybutcutepress" target="_blank">
                 @creepybutcutepress
               </Link>
@@ -151,7 +153,7 @@ export default function CBCPContact() {
               justifyContent={{ xs: 'center', md: 'flex-start' }}
               sx={{ color: 'common.white' }}
             >
-              <Iconify icon="simple-icons:etsy" width={24} sx={{ mr: 2 }} />
+              <ShoppingBagIcon sx={{ fontSize: 24, mr: 2 }} />
               <Link color="inherit" href={ETSY_SHOP_URL} target="_blank" rel="noopener">
                 etsy.com/shop/creepybutcutepress
               </Link>
