@@ -12,6 +12,7 @@ import { QueryClientProvider } from '@tanstack/react-query';
 import useTheme from '../Theme';
 import LaunchDarklyProvider from '../lib/launchdarkly-provider';
 import { AuthProvider } from '../lib/auth-context';
+import { CartProvider } from '../lib/cart-context';
 import { queryClient } from '../lib/query-client';
 import Routes from './Routes';
 
@@ -38,7 +39,9 @@ function App() {
         <LaunchDarklyProvider>
           <QueryClientProvider client={queryClient}>
             <AuthProvider>
-              <Routes />
+              <CartProvider>
+                <Routes />
+              </CartProvider>
             </AuthProvider>
             <Suspense fallback={null}>
               <ReactQueryDevtools initialIsOpen={false} />

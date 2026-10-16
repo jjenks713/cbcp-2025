@@ -62,7 +62,8 @@ export default function CBCPFaqs() {
   );
 
   return (
-    <Box sx={{ bgcolor: 'secondary.main' }}>
+    // No background of its own - it sits in the home page's ContentColumn.
+    <Box>
       <Container component={MotionViewport} sx={{ pt: { xs: 5, md: 10 }, pb: { xs: 10, md: 15 } }}>
         <Box
           sx={{
@@ -136,7 +137,8 @@ export default function CBCPFaqs() {
             <Box
               component={m.div}
               variants={varZoom().in}
-              sx={{ width: '40%', bgcolor: 'secondary.main' }}
+              // No background - the illustration is transparent over the column.
+              sx={{ width: '40%' }}
             >
               <Image alt="FAQs" src="/assets/illustrations/illustration_faqs_questions.svg" />
             </Box>
