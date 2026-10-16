@@ -10,8 +10,26 @@ const { connectDB } = require('./db');
 const authRoutes = require('./routes/auth');
 const adminContentfulRoutes = require('./routes/admin-contentful');
 
+// Sites whose pages may call the API from the browser - local dev plus the
+// prod and dev frontends (each Cloud Run service answers on two URLs).
+// CORS_ORIGINS (comma-separated) replaces the list, e.g. for a custom domain.
+// Requests with no Origin (curl, health checks) aren't affected.
+const DEFAULT_CORS_ORIGINS = [
+  'http://localhost:3000',
+  'https://cbcp-2025-4wcjicbaua-uc.a.run.app',
+  'https://cbcp-2025-561828277789.us-central1.run.app',
+  'https://cbcp-2025-dev-4wcjicbaua-uc.a.run.app',
+  'https://cbcp-2025-dev-561828277789.us-central1.run.app',
+];
+const corsOrigins = process.env.CORS_ORIGINS
+  ? process.env.CORS_ORIGINS.split(',').map((o) => o.trim()).filter(Boolean)
+  : DEFAULT_CORS_ORIGINS;
+
 const app = express();
-app.use(cors());
+// Cloud Run sits behind one Google proxy - trust its X-Forwarded-For so
+// req.ip (used by the login rate limit) is the visitor, not the proxy.
+app.set('trust proxy', 1);
+app.use(cors({ origin: corsOrigins }));
 app.use(express.json());
 
 app.get('/health', (req, res) => {

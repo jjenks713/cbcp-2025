@@ -14,8 +14,7 @@ import RemoveIcon from '@mui/icons-material/Remove';
 import Image from '../../components/image';
 import { MotionViewport, varFade, varZoom } from '../../components/animate';
 import { useResponsive } from '../../hooks/use-responsive';
-import { useContentfulList } from '../../hooks/useContentfulData';
-import { getFaqs } from '../../lib/contentful';
+import { useFaqs, withFallback } from '../../hooks/queries/content';
 
 const FALLBACK_FAQS = [
   {
@@ -52,7 +51,7 @@ const FALLBACK_FAQS = [
 
 export default function CBCPFaqs() {
   const mdUp = useResponsive('up', 'md');
-  const FAQS = useContentfulList(getFaqs, FALLBACK_FAQS);
+  const FAQS = withFallback(useFaqs().data, FALLBACK_FAQS);
   const [expanded, setExpanded] = useState<string | false>(false);
 
   const handleChange = useCallback(

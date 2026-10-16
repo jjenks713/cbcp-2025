@@ -26,6 +26,7 @@ import SearchIcon from '@mui/icons-material/Search';
 
 import {
   thumbUrl,
+  formatPrice,
   entryPathLabel,
   type Asset,
   type Entry,
@@ -94,7 +95,7 @@ export default function EntriesTable({
   const [pendingShow, setPendingShow] = useState<Record<string, boolean>>({});
   const [toggleError, setToggleError] = useState('');
   const [page, setPage] = useState(0);
-  const [rowsPerPage, setRowsPerPage] = useState(25);
+  const [rowsPerPage, setRowsPerPage] = useState(10);
 
   const typeById = useMemo(() => new Map(contentTypes.map((ct) => [ct.id, ct])), [contentTypes]);
 
@@ -181,6 +182,7 @@ export default function EntriesTable({
         .join(', ');
     }
     if (value == null || value === '') return '—';
+    if (field.id === 'price' && typeof value === 'number') return formatPrice(value);
     return String(value);
   };
 

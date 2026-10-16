@@ -10,8 +10,8 @@ import { alpha, useTheme } from '@mui/material/styles';
 import Image from '../../components/image';
 import { bgGradient } from '../../Theme/css';
 import { MotionViewport, varFade, varZoom } from '../../components/animate';
-import { useContentfulSingle } from '../../hooks/useContentfulData';
-import { getArtist, type ArtistProfile } from '../../lib/contentful';
+import { useArtist } from '../../hooks/queries/content';
+import { type ArtistProfile } from '../../lib/contentful';
 import { ETSY_SHOP_URL } from '../../lib/links';
 
 // Copy carried over verbatim from the old cbcp-next site's About page.
@@ -27,7 +27,7 @@ const FALLBACK_ARTIST: ArtistProfile = {
 
 export default function CBCPArtist() {
   const theme = useTheme();
-  const artist = useContentfulSingle(getArtist, FALLBACK_ARTIST);
+  const artist = useArtist().data ?? FALLBACK_ARTIST;
 
   return (
     <Box

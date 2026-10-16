@@ -16,18 +16,17 @@ import TextMaxLine from '../../components/text-max-line';
 import { RouterLink } from '../../components/RouterLink';
 import { varHover, varTranHover, MotionViewport, varFade, varZoom } from '../../components/animate';
 import { useResponsive } from '../../hooks/use-responsive';
-import { useContentfulList } from '../../hooks/useContentfulData';
-import { getArtworks, type ArtItem } from '../../lib/contentful';
+import { useArtworks } from '../../hooks/queries/content';
+import { type ArtItem } from '../../lib/contentful';
 import { galleryPieceHref } from '../../lib/galleryLink';
 
 export default function CBCPArtwork() {
   const mdUp = useResponsive('up', 'md');
   // This mosaic layout indexes ART_ITEMS[0..5] directly, so only render
   // once there are enough Contentful entries to fill all six slots.
-  const ART_ITEMS = useContentfulList(async () => {
-    const items = await getArtworks();
-    return items.length >= 6 ? items : [];
-  }, [] as ArtItem[]);
+  // Shares the gallery's artworks query (same key), so it's one fetch.
+  const artworks = useArtworks().data ?? [];
+  const ART_ITEMS: ArtItem[] = artworks.length >= 6 ? artworks : [];
 
   if (ART_ITEMS.length < 6) return null;
 
