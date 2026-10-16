@@ -10,8 +10,9 @@ import Container from '@mui/material/Container';
 import TextField from '@mui/material/TextField';
 import Typography from '@mui/material/Typography';
 import InputAdornment from '@mui/material/InputAdornment';
+import Visibility from '@mui/icons-material/Visibility';
+import VisibilityOff from '@mui/icons-material/VisibilityOff';
 
-import Iconify from '../components/iconify';
 import { useAuth } from '../lib/auth-context';
 
 export default function Login() {
@@ -76,7 +77,7 @@ export default function Login() {
                         edge="end"
                         aria-label={showPassword ? 'Hide password' : 'Show password'}
                       >
-                        <Iconify icon={showPassword ? 'carbon:view-off' : 'carbon:view'} width={20} />
+                        {showPassword ? <VisibilityOff fontSize="small" /> : <Visibility fontSize="small" />}
                       </IconButton>
                     </InputAdornment>
                   ),
