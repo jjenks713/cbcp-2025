@@ -10,6 +10,8 @@ export const queryKeys = {
     artist: () => ['content', 'artist'] as const,
     faqs: () => ['content', 'faqs'] as const,
     shopCategories: () => ['content', 'shopCategories'] as const,
+    shopCategoryList: () => ['content', 'shopCategoryList'] as const,
+    shopItems: () => ['content', 'shopItems'] as const,
   },
   // The logged-in user (GET /api/auth/me). Not keyed by token (keeps it out
   // of devtools) - auth-context resets this on login/logout instead.

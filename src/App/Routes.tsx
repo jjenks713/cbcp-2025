@@ -9,11 +9,16 @@ import Gallery from "../Features/Gallery";
 import Login from "../Features/Login";
 import Account, { AccountDetails } from "../Features/Account";
 import AuthRerouteProvider from "./AuthProvider";
+import ShopGate from "./ShopGate";
 
 // Split into its own bundle, downloaded only when an admin opens the tab.
 const Admin = lazy(() => import("../Features/Admin/Admin"));
+// Likewise only loaded once someone visits the shop (and it's switched on).
+const Shop = lazy(() => import("../Features/Shop/Shop"));
+const Cart = lazy(() => import("../Features/Shop/Cart"));
+const Checkout = lazy(() => import("../Features/Shop/Checkout"));
 
-const adminFallback = (
+const pageFallback = (
     <Box sx={{ display: "flex", justifyContent: "center", py: 8 }}>
         <CircularProgress color="primary" />
     </Box>
@@ -31,6 +36,37 @@ const routes = [
             {
                 path: "gallery",
                 element: <Gallery />,
+            },
+            {
+                // Behind the hide-cbcp-shop flag; /shop/:categorySlug is the
+                // same page filtered to a category.
+                element: <ShopGate />,
+                children: [
+                    {
+                        path: "shop/:categorySlug?",
+                        element: (
+                            <Suspense fallback={pageFallback}>
+                                <Shop />
+                            </Suspense>
+                        ),
+                    },
+                    {
+                        path: "cart",
+                        element: (
+                            <Suspense fallback={pageFallback}>
+                                <Cart />
+                            </Suspense>
+                        ),
+                    },
+                    {
+                        path: "checkout",
+                        element: (
+                            <Suspense fallback={pageFallback}>
+                                <Checkout />
+                            </Suspense>
+                        ),
+                    },
+                ],
             },
             {
                 element: <AuthRerouteProvider />,
@@ -58,7 +94,7 @@ const routes = [
                                     {
                                         path: "admin",
                                         element: (
-                                            <Suspense fallback={adminFallback}>
+                                            <Suspense fallback={pageFallback}>
                                                 <Admin />
                                             </Suspense>
                                         ),
