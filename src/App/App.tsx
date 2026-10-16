@@ -4,14 +4,23 @@ import 'yet-another-react-lightbox/styles.css';
 import 'yet-another-react-lightbox/plugins/captions.css';
 import 'yet-another-react-lightbox/plugins/thumbnails.css';
 
-import React from 'react';
+import React, { lazy, Suspense } from 'react';
 import { BrowserRouter } from 'react-router-dom';
 import { ThemeProvider } from '@mui/material';
 import CssBaseline from '@mui/material/CssBaseline';
+import { QueryClientProvider } from '@tanstack/react-query';
 import useTheme from '../Theme';
 import LaunchDarklyProvider from '../lib/launchdarkly-provider';
 import { AuthProvider } from '../lib/auth-context';
+import { queryClient } from '../lib/query-client';
 import Routes from './Routes';
+
+// TanStack Query's cache inspector (floating button, bottom corner) - dev
+// only; the production build drops this import entirely.
+const ReactQueryDevtools =
+    process.env.NODE_ENV === 'development'
+        ? lazy(() => import('@tanstack/react-query-devtools').then((m) => ({ default: m.ReactQueryDevtools })))
+        : () => null;
 
 function App() {
   const theme = useTheme();
@@ -27,9 +36,14 @@ function App() {
         */}
         <CssBaseline />
         <LaunchDarklyProvider>
-          <AuthProvider>
-            <Routes />
-          </AuthProvider>
+          <QueryClientProvider client={queryClient}>
+            <AuthProvider>
+              <Routes />
+            </AuthProvider>
+            <Suspense fallback={null}>
+              <ReactQueryDevtools initialIsOpen={false} />
+            </Suspense>
+          </QueryClientProvider>
         </LaunchDarklyProvider>
       </ThemeProvider>
     </BrowserRouter>
