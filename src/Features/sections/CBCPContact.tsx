@@ -158,7 +158,7 @@ export default function CBCPContact() {
             </Stack>
           </Box>
 
-          <Box component="form" onSubmit={handleSubmit} sx={{ width: { md: '42%' } }}>
+          <Box component="form" onSubmit={handleSubmit} sx={{ width: { md: '42%' }, mt: { xs: 5, md: 0 } }}>
             <Stack alignItems={{ xs: 'center', md: 'flex-start' }}>
               {/*
                 Left column animates in first; each field here then slides
