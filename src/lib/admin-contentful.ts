@@ -55,11 +55,6 @@ export const GENERATED_FIELDS: Record<string, string[]> = { shopItem: ['itemId']
 export const isGeneratedField = (contentTypeId: string, fieldId: string) =>
   GENERATED_FIELDS[contentTypeId]?.includes(fieldId) ?? false;
 
-/** 4.5 -> "$4.50" */
-export function formatPrice(value: number) {
-  return value.toLocaleString('en-US', { style: 'currency', currency: 'USD' });
-}
-
 const BASE = '/api/admin/contentful';
 
 export function createAdminApi(token: string | null) {

@@ -12,7 +12,7 @@ import { bgGradient } from '../../Theme/css';
 import { MotionViewport, varFade, varZoom } from '../../components/animate';
 import { useArtist } from '../../hooks/queries/content';
 import { type ArtistProfile } from '../../lib/contentful';
-import { ETSY_SHOP_URL } from '../../lib/links';
+import { useShopLink } from '../../hooks/use-shop-link';
 
 // Copy carried over verbatim from the old cbcp-next site's About page.
 const FALLBACK_ARTIST: ArtistProfile = {
@@ -28,6 +28,8 @@ const FALLBACK_ARTIST: ArtistProfile = {
 export default function CBCPArtist() {
   const theme = useTheme();
   const artist = useArtist().data ?? FALLBACK_ARTIST;
+  // "Creepy but Cute Press" under the artist's name links to the shop.
+  const shopLink = useShopLink();
 
   return (
     <Box
@@ -83,9 +85,7 @@ export default function CBCPArtist() {
                   {artist.name}
                 </Typography>
                 <Link
-                  href={ETSY_SHOP_URL}
-                  target="_blank"
-                  rel="noopener"
+                  {...shopLink}
                   variant="body2"
                   sx={{ color: 'grey.400' }}
                 >

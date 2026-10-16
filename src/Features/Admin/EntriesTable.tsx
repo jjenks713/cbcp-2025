@@ -26,7 +26,6 @@ import SearchIcon from '@mui/icons-material/Search';
 
 import {
   thumbUrl,
-  formatPrice,
   entryPathLabel,
   type Asset,
   type Entry,
@@ -34,6 +33,7 @@ import {
   type FieldValue,
   type ContentType,
 } from '../../lib/admin-contentful';
+import { formatPrice } from '../../lib/format';
 
 type Props = {
   contentType: ContentType;
