@@ -1,3 +1,4 @@
+const crypto = require('crypto');
 const express = require('express');
 const multer = require('multer');
 
@@ -36,6 +37,35 @@ function parseContentfulError(err) {
     return field ? `${field}: ${reason}` : reason;
   });
   return { status: body.status, message: problems.length ? problems.join('; ') : body.message };
+}
+
+// Shop item IDs: 8 characters with no lookalikes (0/o, 1/l/i), so one can be
+// read out over email without confusion. ~1e12 combinations - a clash is
+// vanishingly rare, and Contentful's unique validation catches it anyway.
+const ITEM_ID_ALPHABET = 'abcdefghjkmnpqrstuvwxyz23456789';
+function generateItemId() {
+  return Array.from({ length: 8 }, () => ITEM_ID_ALPHABET[crypto.randomInt(ITEM_ID_ALPHABET.length)]).join('');
+}
+
+// Fields the API fills in on create and never lets the admin set or
+// change. Mirrored by GENERATED_FIELDS in src/lib/admin-contentful.ts, so
+// the form hides them on new entries and shows them read-only after.
+const GENERATED_FIELDS = { shopItem: { itemId: generateItemId } };
+
+/** The request's fields minus any the API generates for this content type. */
+function editableFields(contentTypeId, fields = {}) {
+  const generated = GENERATED_FIELDS[contentTypeId] || {};
+  return Object.fromEntries(Object.entries(fields).filter(([id]) => !(id in generated)));
+}
+
+/** True when Contentful rejected the entry because one of fieldIds isn't unique. */
+function isUniqueError(err, fieldIds) {
+  try {
+    const { details } = JSON.parse(err.message);
+    return (details?.errors || []).some((e) => e.name === 'unique' && fieldIds.includes(e.path?.[1]));
+  } catch {
+    return false;
+  }
 }
 
 // Lets each route just `await` Contentful calls without a try/catch of its own.
@@ -102,18 +132,24 @@ router.post(
   asyncHandler(async (req, res) => {
     const { contentTypeId } = req.params;
     const fieldDefs = await getFieldDefs(contentTypeId);
-    const fields = applyFields({}, wrapFields(req.body.fields || {}, fieldDefs));
-    const created = await client.entry.create({ ...envParams, contentTypeId }, { fields });
-    let published;
-    try {
-      published = await client.entry.publish({ ...envParams, entryId: created.sys.id }, created);
-    } catch (err) {
-      // Some validations (e.g. unique) only run at publish - don't leave the
-      // rejected entry behind as an orphaned draft.
-      await client.entry.delete({ ...envParams, entryId: created.sys.id }).catch(() => {});
-      throw err;
+    const generators = GENERATED_FIELDS[contentTypeId] || {};
+    const flat = editableFields(contentTypeId, req.body.fields);
+
+    // Retried only if a generated value happens to clash with an existing one.
+    for (let attempt = 1; ; attempt += 1) {
+      const generated = Object.fromEntries(Object.entries(generators).map(([id, generate]) => [id, generate()]));
+      const fields = applyFields({}, wrapFields({ ...flat, ...generated }, fieldDefs));
+      const created = await client.entry.create({ ...envParams, contentTypeId }, { fields });
+      try {
+        const published = await client.entry.publish({ ...envParams, entryId: created.sys.id }, created);
+        return res.status(201).json({ entry: toEntryDto(published, fieldDefs) });
+      } catch (err) {
+        // Some validations (e.g. unique) only run at publish - don't leave the
+        // rejected entry behind as an orphaned draft.
+        await client.entry.delete({ ...envParams, entryId: created.sys.id }).catch(() => {});
+        if (attempt >= 3 || !isUniqueError(err, Object.keys(generated))) throw err;
+      }
     }
-    res.status(201).json({ entry: toEntryDto(published, fieldDefs) });
   })
 );
 
@@ -123,7 +159,7 @@ router.put(
     const { contentTypeId, entryId } = req.params;
     const fieldDefs = await getFieldDefs(contentTypeId);
     const current = await client.entry.get({ ...envParams, entryId });
-    const fields = wrapFields(req.body.fields || {}, fieldDefs);
+    const fields = wrapFields(editableFields(contentTypeId, req.body.fields), fieldDefs);
     const updated = await client.entry.update(
       { ...envParams, entryId },
       { ...current, fields: applyFields(current.fields, fields) }

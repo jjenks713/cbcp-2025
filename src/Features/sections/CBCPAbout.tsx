@@ -12,8 +12,8 @@ import Image from '../../components/image';
 import { fShortenNumber } from '../../utils/format-number';
 import { RouterLink } from '../../components/RouterLink';
 import { MotionViewport, varFade, varZoom, varTranEnter } from '../../components/animate';
-import { useContentfulSingle } from '../../hooks/useContentfulData';
-import { getArtist, type ArtistProfile } from '../../lib/contentful';
+import { useArtist } from '../../hooks/queries/content';
+import { type ArtistProfile } from '../../lib/contentful';
 
 const FALLBACK_ARTIST: ArtistProfile = {
   name: 'Mary Jenkin',
@@ -25,7 +25,7 @@ const FALLBACK_ARTIST: ArtistProfile = {
 };
 
 export default function CBCPAbout() {
-  const artist = useContentfulSingle(getArtist, FALLBACK_ARTIST);
+  const artist = useArtist().data ?? FALLBACK_ARTIST;
 
   const STATS = [
     {

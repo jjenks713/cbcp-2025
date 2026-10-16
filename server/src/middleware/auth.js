@@ -1,4 +1,7 @@
 const jwt = require('jsonwebtoken');
+const mongoose = require('mongoose');
+
+const UserRole = require('../models/UserRole');
 
 function requireAuth(req, res, next) {
   const header = req.headers.authorization || '';
@@ -15,10 +18,14 @@ function requireAuth(req, res, next) {
   }
 }
 
-function requireAdmin(req, res, next) {
-  if (req.user?.role !== 'admin') {
+// Checked against userRoles on every request rather than trusted from the
+// token, so revoking admin takes effect immediately, not when the token expires.
+async function requireAdmin(req, res, next) {
+  const roles = mongoose.isValidObjectId(req.user?.sub) ? await UserRole.rolesFor(req.user.sub) : [];
+  if (!roles.includes('admin')) {
     return res.status(403).json({ error: 'Admin access required' });
   }
+  req.user.roles = roles;
   next();
 }
 

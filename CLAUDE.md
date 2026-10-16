@@ -13,3 +13,23 @@
   session(s) — what was asked, what was done, key decisions, and
   anything left open — rather than writing it once at the end. Treat it
   as a log to append/update as work happens, not a final summary.
+
+- Data fetching in the frontend goes through TanStack Query
+  (`@tanstack/react-query` v5) — no `useEffect` + `fetch`/`.then` +
+  `useState` for loading server or Contentful data.
+  - Reads are `useQuery`/`useQueries` hooks; writes are `useMutation`
+    hooks. Put them in `src/hooks/queries/` by area (`content.ts` for
+    public Contentful content, `admin.ts` for the admin panel); auth
+    lives in `src/lib/auth-context.tsx` behind `useAuth()`.
+  - Every cache key comes from `src/lib/query-keys.ts` — add new keys
+    there, never inline arrays in components.
+  - After a mutation, update the cache directly with `setQueryData` when
+    the response contains the new data; otherwise `invalidateQueries`.
+    Admin changes to Contentful must also invalidate `queryKeys.content.all`
+    so the public site refetches.
+  - Query functions must not resolve to `undefined` (v5 rule) — return
+    `null` instead.
+  - Anything user-specific (auth, admin) must be removed from the cache
+    on login/logout; public content can stay cached.
+  - The shared client and its defaults are in `src/lib/query-client.ts`;
+    devtools load only under `npm start` (see `src/App/App.tsx`).

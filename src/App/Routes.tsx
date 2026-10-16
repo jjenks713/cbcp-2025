@@ -1,13 +1,23 @@
-import React, { useEffect } from "react";
-import { useRoutes, useLocation } from "react-router-dom";
+import React, { lazy, Suspense, useEffect } from "react";
+import { useRoutes, useLocation, Navigate } from "react-router-dom";
+import Box from "@mui/material/Box";
+import CircularProgress from "@mui/material/CircularProgress";
 import Layout from "./Layout";
 import RequireAuth from "./RequireAuth";
 import Main from "../Features/Main";
 import Gallery from "../Features/Gallery";
 import Login from "../Features/Login";
-import Account from "../Features/Account";
-import Admin from "../Features/Admin/Admin";
+import Account, { AccountDetails } from "../Features/Account";
 import AuthRerouteProvider from "./AuthProvider";
+
+// Split into its own bundle, downloaded only when an admin opens the tab.
+const Admin = lazy(() => import("../Features/Admin/Admin"));
+
+const adminFallback = (
+    <Box sx={{ display: "flex", justifyContent: "center", py: 8 }}>
+        <CircularProgress color="primary" />
+    </Box>
+);
 
 const routes = [
     {
@@ -37,17 +47,32 @@ const routes = [
                     {
                         path: "account",
                         element: <Account />,
+                        children: [
+                            {
+                                index: true,
+                                element: <AccountDetails />,
+                            },
+                            {
+                                element: <RequireAuth role="admin" />,
+                                children: [
+                                    {
+                                        path: "admin",
+                                        element: (
+                                            <Suspense fallback={adminFallback}>
+                                                <Admin />
+                                            </Suspense>
+                                        ),
+                                    },
+                                ],
+                            },
+                        ],
                     },
                 ],
             },
             {
-                element: <RequireAuth role="admin" />,
-                children: [
-                    {
-                        path: "admin",
-                        element: <Admin />,
-                    },
-                ],
+                // The admin panel used to be its own page - keep old links working.
+                path: "admin",
+                element: <Navigate to="/account/admin" replace />,
             },
         ],
     }
