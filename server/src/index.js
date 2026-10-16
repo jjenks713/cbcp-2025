@@ -8,7 +8,9 @@ const cors = require('cors');
 
 const { connectDB } = require('./db');
 const authRoutes = require('./routes/auth');
+const shopRoutes = require('./routes/shop');
 const adminContentfulRoutes = require('./routes/admin-contentful');
+const adminInventoryRoutes = require('./routes/admin-inventory');
 
 // Sites whose pages may call the API from the browser - local dev plus the
 // prod and dev frontends (each Cloud Run service answers on two URLs).
@@ -37,7 +39,9 @@ app.get('/health', (req, res) => {
 });
 
 app.use('/api/auth', authRoutes);
+app.use('/api/shop', shopRoutes);
 app.use('/api/admin/contentful', adminContentfulRoutes);
+app.use('/api/admin/inventory', adminInventoryRoutes);
 
 const PORT = process.env.PORT || 8080;
 

@@ -1,3 +1,5 @@
+import { useEffect } from 'react';
+
 import Box from '@mui/material/Box';
 import Stack from '@mui/material/Stack';
 import Button from '@mui/material/Button';
@@ -13,15 +15,24 @@ import { useCart } from '../../lib/cart-context';
 import { formatPrice } from '../../lib/format';
 import { RouterLink } from '../../components/RouterLink';
 import CartLineRow from './CartLineRow';
+import QuantityStepper from './QuantityStepper';
+import SimilarItems from './SimilarItems';
 import { useCartItems } from './use-cart-items';
 
 // Slide-out cart, opened from the nav's cart button (or after adding an
 // item). Lists what's in the cart with a remove button each, the
 // subtotal, and links to the full cart page and checkout.
 export default function CartDrawer() {
-  const { drawerOpen, closeDrawer, remove } = useCart();
-  const { items, subtotal, loading } = useCartItems();
+  const { drawerOpen, closeDrawer, remove, setQuantity } = useCart();
+  const { items, staleKeys, subtotal, loading } = useCartItems();
   const purchasable = items.some((i) => i.quantity > 0);
+
+  // Drop lines for items that were deleted or hidden since they were added,
+  // so the nav badge doesn't count things the cart can't show. (This
+  // drawer is mounted on every page while the shop is on.)
+  useEffect(() => {
+    staleKeys.forEach(remove);
+  }, [staleKeys, remove]);
 
   return (
     <Drawer
@@ -55,10 +66,31 @@ export default function CartDrawer() {
           )}
           {!loading &&
             items.map((cartItem) => (
-              <Box key={cartItem.item.id} sx={{ borderBottom: 1, borderColor: 'rgba(255, 255, 255, 0.12)' }}>
-                <CartLineRow cartItem={cartItem} onRemove={() => remove(cartItem.item.id)} />
+              <Box key={cartItem.key} sx={{ borderBottom: 1, borderColor: 'rgba(255, 255, 255, 0.12)' }}>
+                <CartLineRow
+                  cartItem={cartItem}
+                  onRemove={() => remove(cartItem.key)}
+                  quantityControl={
+                    <Stack direction="row" alignItems="center" spacing={1.5}>
+                      <Typography variant="body2" sx={{ color: 'grey.400' }}>
+                        {formatPrice(cartItem.price)}
+                      </Typography>
+                      <QuantityStepper
+                        value={cartItem.quantity}
+                        max={cartItem.maxQuantity}
+                        onChange={(quantity) => setQuantity(cartItem.key, quantity)}
+                        itemName={cartItem.item.name}
+                      />
+                    </Stack>
+                  }
+                />
               </Box>
             ))}
+          {!loading && (
+            <Box sx={{ py: 3 }}>
+              <SimilarItems enabled={drawerOpen} muted="grey.500" />
+            </Box>
+          )}
         </Box>
 
         <Divider sx={{ borderColor: 'rgba(255, 255, 255, 0.12)' }} />

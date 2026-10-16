@@ -1,0 +1,52 @@
+{
+  // Pick "Client + Server" in the Run and Debug dropdown and press F5:
+  // starts the API (nodemon, breakpoints in server/) and the CRA dev
+  // server, then - once the first compile finishes - opens Chrome on
+  // http://localhost:3000 with the debugger attached (breakpoints in src/).
+  // Stopping stops all of it.
+  "version": "0.2.0",
+  "configurations": [
+    {
+      "name": "Server (API)",
+      "type": "node",
+      "request": "launch",
+      // `npm run dev` = nodemon src/index.js; the debugger follows into the
+      // node child and re-attaches after each nodemon restart.
+      "runtimeExecutable": "npm",
+      "runtimeArgs": ["run", "dev"],
+      // server/.env and server/.env.local are loaded relative to here.
+      "cwd": "${workspaceFolder}/server",
+      "console": "integratedTerminal",
+      "skipFiles": ["<node_internals>/**", "**/node_modules/**"]
+    },
+    {
+      "name": "Client (Chrome)",
+      // Runs `npm start` in a debug terminal and watches its output, rather
+      // than a preLaunchTask: a background task would need a problem matcher
+      // to signal "ready", which VS Code kept rejecting.
+      "type": "node-terminal",
+      "request": "launch",
+      "command": "npm start",
+      "cwd": "${workspaceFolder}",
+      // The debugger opens Chrome itself - stop CRA opening a second tab.
+      "env": { "BROWSER": "none" },
+      "serverReadyAction": {
+        // No capture group, so uriFormat is opened as-is (CRA colors the
+        // port in its "Local:" line, which makes capturing it unreliable).
+        "pattern": "Compiled successfully|Compiled with warnings|Failed to compile|webpack compiled",
+        "uriFormat": "http://localhost:3000",
+        "action": "debugWithChrome",
+        "webRoot": "${workspaceFolder}",
+        "killOnServerStop": true
+      }
+    }
+  ],
+  "compounds": [
+    {
+      "name": "Client + Server",
+      "configurations": ["Server (API)", "Client (Chrome)"],
+      "stopAll": true,
+      "presentation": { "order": 1 }
+    }
+  ]
+}

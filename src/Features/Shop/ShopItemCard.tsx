@@ -12,7 +12,7 @@ import Image from '../../components/image';
 import TextMaxLine from '../../components/text-max-line';
 import { formatPrice } from '../../lib/format';
 import { useCart } from '../../lib/cart-context';
-import { type ShopItem } from '../../lib/contentful';
+import { type ShopItem } from '../../hooks/queries/shop';
 
 // Contentful Images API: a square crop sized for the grid, instead of the
 // full-size upload.
@@ -20,18 +20,14 @@ const cardImageUrl = (url: string) => `${url}?w=600&h=600&fit=fill`;
 
 // One product in the shop grid - adapted from the Zone template's
 // ecommerce-product-view-grid-item (category, name, price under a square
-// image), minus ratings/sale labels, plus a sold-out state.
+// image), minus ratings/sale labels, plus sold-out and in-cart tags. The
+// cart button, image and name all open the item drawer, where the size
+// and quantity are chosen.
 export default function ShopItemCard({ item }: { item: ShopItem }) {
   const soldOut = item.stock <= 0;
-  const { lines, add, openDrawer } = useCart();
-  const inCart = lines.find((l) => l.id === item.id)?.quantity ?? 0;
-  // Can't add more than there is in stock.
-  const canAdd = !soldOut && inCart < item.stock;
-
-  const handleAdd = () => {
-    add(item.id);
-    openDrawer();
-  };
+  const { quantityOf, openItem } = useCart();
+  const inCart = quantityOf(item.id);
+  const show = () => openItem(item.id);
 
   return (
     <Stack spacing={2}>
@@ -42,38 +38,50 @@ export default function ShopItemCard({ item }: { item: ShopItem }) {
         }}
       >
         {!soldOut && (
-          <Tooltip title={canAdd ? 'Add to cart' : 'All in stock are in your cart'}>
-            {/* span so the tooltip still works while the button is disabled */}
-            <Box
-              component="span"
-              sx={{ position: 'absolute', right: 8, bottom: 8, zIndex: 9 }}
+          <Tooltip title="Add to cart">
+            <Fab
+              className="add-to-cart"
+              color="primary"
+              size="small"
+              onClick={show}
+              aria-label={`Add ${item.name} to cart`}
+              sx={{
+                position: 'absolute',
+                right: 8,
+                bottom: 8,
+                zIndex: 9,
+                opacity: 0,
+                transition: (theme) => theme.transitions.create('opacity'),
+                // No hover on touch screens - keep it visible there.
+                '@media (hover: none)': { opacity: 1 },
+              }}
             >
-              <Fab
-                className="add-to-cart"
-                color="primary"
-                size="small"
-                disabled={!canAdd}
-                onClick={handleAdd}
-                aria-label={`Add ${item.name} to cart`}
-                sx={{
-                  opacity: 0,
-                  transition: (theme) => theme.transitions.create('opacity'),
-                  // No hover on touch screens - keep it visible there.
-                  '@media (hover: none)': { opacity: 1 },
-                }}
-              >
-                <AddShoppingCartIcon fontSize="small" />
-              </Fab>
-            </Box>
+              <AddShoppingCartIcon fontSize="small" />
+            </Fab>
           </Tooltip>
         )}
-        {soldOut && (
+        {(soldOut || inCart > 0) && (
           <Chip
-            label="Sold out"
+            label={soldOut ? 'Sold out' : `${inCart} in cart`}
             size="small"
-            sx={{ position: 'absolute', top: 8, left: 8, zIndex: 9, bgcolor: 'grey.900', color: 'common.white' }}
+            sx={{
+              position: 'absolute',
+              top: 8,
+              left: 8,
+              zIndex: 9,
+              ...(soldOut
+                ? { bgcolor: 'grey.900', color: 'common.white' }
+                : { bgcolor: 'primary.main', color: 'secondary.main', fontWeight: 600 }),
+            }}
           />
         )}
+        <Box
+          component="button"
+          type="button"
+          onClick={show}
+          aria-label={`View ${item.name}`}
+          sx={{ p: 0, border: 0, bgcolor: 'transparent', cursor: 'pointer', display: 'block', width: 1 }}
+        >
         {item.coverUrl ? (
           <Image
             alt={item.name}
@@ -94,17 +102,23 @@ export default function ShopItemCard({ item }: { item: ShopItem }) {
             <ImageIcon sx={{ position: 'absolute', top: '50%', left: '50%', transform: 'translate(-50%, -50%)' }} />
           </Box>
         )}
+        </Box>
       </Box>
 
       <Stack spacing={0.5}>
         <TextMaxLine variant="caption" line={1} sx={{ color: 'text.disabled' }}>
           {item.categoryName}
         </TextMaxLine>
-        <TextMaxLine variant="body2" line={1} sx={{ fontWeight: 'fontWeightMedium' }}>
+        <TextMaxLine
+          variant="body2"
+          line={1}
+          onClick={show}
+          sx={{ fontWeight: 'fontWeightMedium', cursor: 'pointer', '&:hover': { color: 'primary.main' } }}
+        >
           {item.name}
         </TextMaxLine>
         <Typography variant="subtitle2" sx={{ color: soldOut ? 'text.disabled' : 'text.primary' }}>
-          {formatPrice(item.price)}
+          {item.maxPrice > item.price ? `From ${formatPrice(item.price)}` : formatPrice(item.price)}
         </Typography>
       </Stack>
     </Stack>

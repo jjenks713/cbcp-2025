@@ -11,6 +11,7 @@ import {
 import { useAuth } from '../../lib/auth-context';
 import { queryKeys } from '../../lib/query-keys';
 import { createAdminApi, type Asset, type Entry } from '../../lib/admin-contentful';
+import { createInventoryAdminApi, type InventoryInput, type InventoryRow } from '../../lib/shop-api';
 
 // Admin panel data (the API's Contentful Management routes). Mutations
 // write their result straight into the cached lists instead of refetching,
@@ -114,5 +115,35 @@ export function useUploadAsset() {
   return useMutation({
     mutationFn: ({ file, title }: { file: File; title?: string }) => api.uploadAsset(file, title),
     onSuccess: (asset) => queryClient.setQueryData<Asset[]>(queryKeys.admin.assets(), (list: Asset[] = []) => [asset, ...list]),
+  });
+}
+
+// ---- Stock (inventory) ----------------------------------------------------
+
+function useInventoryAdminApi() {
+  const { token } = useAuth();
+  return useMemo(() => createInventoryAdminApi(token), [token]);
+}
+
+/** One shop item's stock rows (by its itemId). */
+export function useItemInventory(itemId: string | undefined, { enabled = true } = {}) {
+  const api = useInventoryAdminApi();
+  return useQuery({
+    queryKey: queryKeys.admin.inventory(itemId ?? ''),
+    queryFn: () => api.getItemInventory(itemId as string),
+    enabled: enabled && Boolean(itemId),
+  });
+}
+
+/** Saves an item's stock rows; refreshes the shop's stock so it shows straight away. */
+export function useSaveInventory() {
+  const api = useInventoryAdminApi();
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: ({ itemId, rows }: { itemId: string; rows: InventoryInput[] }) => api.saveItemInventory(itemId, rows),
+    onSuccess: (saved, { itemId }) => {
+      queryClient.setQueryData<InventoryRow[]>(queryKeys.admin.inventory(itemId), saved);
+      queryClient.invalidateQueries({ queryKey: queryKeys.shop.all });
+    },
   });
 }
