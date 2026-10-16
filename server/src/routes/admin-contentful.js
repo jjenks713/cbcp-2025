@@ -5,6 +5,7 @@ const multer = require('multer');
 const { client, envParams, isConfigured, LOCALE } = require('../lib/contentfulAdmin');
 const { unwrapFields, wrapFields, applyFields, normalizeContentType } = require('../lib/contentfulFields');
 const { requireAuth, requireAdmin } = require('../middleware/auth');
+const Inventory = require('../models/Inventory');
 
 const router = express.Router();
 const upload = multer({ storage: multer.memoryStorage(), limits: { fileSize: 10 * 1024 * 1024 } });
@@ -199,6 +200,9 @@ router.delete(
 
     if (entry.sys.publishedVersion) await client.entry.unpublish({ ...envParams, entryId });
     await client.entry.delete({ ...envParams, entryId });
+    // A deleted shop item's stock rows go with it.
+    const itemId = contentTypeId === 'shopItem' ? entry.fields.itemId?.[LOCALE] : null;
+    if (itemId) await Inventory.deleteMany({ itemId });
     res.status(204).end();
   })
 );

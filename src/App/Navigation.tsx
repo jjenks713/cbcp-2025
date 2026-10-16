@@ -10,6 +10,7 @@ import { useNavigate, useLocation } from 'react-router-dom';
 import { useResponsive } from '../hooks/use-responsive';
 import { useShopEnabled } from '../hooks/use-shop-link';
 import { useCart } from '../lib/cart-context';import CartDrawer from '../Features/Shop/CartDrawer';
+import ItemDrawer from '../Features/Shop/ItemDrawer';
 import { useAuth, hasRole, type AuthUser } from '../lib/auth-context';
 import { ETSY_SHOP_URL } from '../lib/links';
 import { scrollToTopAndReset } from '../lib/scrollReset';
@@ -229,7 +230,12 @@ const Navigation = () => {
                 </Box>
             </Drawer>
 
-            {shopEnabled && <CartDrawer />}
+            {shopEnabled && (
+                <>
+                    <CartDrawer />
+                    <ItemDrawer />
+                </>
+            )}
         </Stack>
     )
 };

@@ -1,4 +1,5 @@
 import { type Entry } from '../../lib/admin-contentful';
+import { type InventoryInput } from '../../lib/shop-api';
 
 // What the bulk add dialog needs to know about a content type: which field
 // names the entry, which links it to categories, the extra per-image
@@ -43,6 +44,9 @@ export type BulkAddConfig = {
   categoryHelp: string;
   rowFields: BulkField[];
   toFields: (row: BulkRow) => Entry['fields'];
+  // Stock rows to save to the inventory once the entry exists (shop items
+  // - stock isn't a Contentful field).
+  inventoryFor?: (row: BulkRow) => InventoryInput[];
 };
 
 const SHOP_ITEM: BulkAddConfig = {
@@ -62,11 +66,12 @@ const SHOP_ITEM: BulkAddConfig = {
     name,
     category: categoryIds[0],
     price: Number(values.price),
-    stock: Number(values.stock),
     images: [assetId],
     // Hidden until switched on from the table, like any new entry.
     showInApp: false,
   }),
+  // Bulk-added items have no sizes, so one stock row.
+  inventoryFor: ({ values }) => [{ size: null, stock: Number(values.stock), price: null }],
 };
 
 const ARTWORK: BulkAddConfig = {

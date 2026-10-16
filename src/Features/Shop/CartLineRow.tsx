@@ -1,6 +1,7 @@
 import type { ReactNode } from 'react';
 
 import Box from '@mui/material/Box';
+import Link from '@mui/material/Link';
 import Stack from '@mui/material/Stack';
 import Tooltip from '@mui/material/Tooltip';
 import IconButton from '@mui/material/IconButton';
@@ -9,6 +10,9 @@ import ImageIcon from '@mui/icons-material/Image';
 import DeleteOutlineIcon from '@mui/icons-material/DeleteOutline';
 
 import { formatPrice } from '../../lib/format';
+import { useCart } from '../../lib/cart-context';
+import { RouterLink } from '../../components/RouterLink';
+import { shopItemHref } from './item-link';
 import { type CartItem } from './use-cart-items';
 
 type Props = {
@@ -25,6 +29,8 @@ type Props = {
 export default function CartLineRow({ cartItem, onRemove, quantityControl }: Props) {
   const { item, quantity, lineTotal } = cartItem;
   const soldOut = quantity === 0;
+  // The name link leaves the cart drawer (when shown in it).
+  const { closeDrawer } = useCart();
 
   return (
     <Stack direction="row" spacing={2} alignItems="center" sx={{ py: 2 }}>
@@ -54,9 +60,23 @@ export default function CartLineRow({ cartItem, onRemove, quantityControl }: Pro
       )}
 
       <Stack spacing={0.5} sx={{ flexGrow: 1, minWidth: 0 }}>
-        <Typography variant="subtitle2" noWrap>
+        {/* Back to the item's category in the shop, with its drawer open. */}
+        <Link
+          component={RouterLink}
+          href={shopItemHref(item)}
+          onClick={closeDrawer}
+          variant="subtitle2"
+          noWrap
+          underline="hover"
+          sx={{ color: 'inherit', display: 'block', '&:hover': { color: 'primary.main' } }}
+        >
           {item.name}
-        </Typography>
+        </Link>
+        {cartItem.size && (
+          <Typography variant="caption" sx={{ color: 'grey.500' }}>
+            Size: {cartItem.size}
+          </Typography>
+        )}
         {soldOut ? (
           <Typography variant="body2" sx={{ color: 'error.main' }}>
             Sold out
@@ -64,7 +84,7 @@ export default function CartLineRow({ cartItem, onRemove, quantityControl }: Pro
         ) : (
           quantityControl ?? (
             <Typography variant="body2" sx={{ color: 'text.secondary' }}>
-              {formatPrice(item.price)} × {quantity}
+              {formatPrice(cartItem.price)} × {quantity}
             </Typography>
           )
         )}

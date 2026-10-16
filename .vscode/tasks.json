@@ -1,0 +1,32 @@
+{
+  // Run without the debugger: Terminal > Run Task... (the F5 setup in
+  // launch.json doesn't depend on these).
+  "version": "2.0.0",
+  "tasks": [
+    {
+      "label": "client: start",
+      "detail": "CRA dev server on http://localhost:3000 (opens your browser)",
+      "type": "shell",
+      "command": "npm start",
+      "options": { "cwd": "${workspaceFolder}" },
+      "presentation": { "panel": "dedicated", "reveal": "always" },
+      "problemMatcher": []
+    },
+    {
+      "label": "server: start",
+      "detail": "API on http://localhost:8080 with nodemon",
+      "type": "shell",
+      "command": "npm run dev",
+      "options": { "cwd": "${workspaceFolder}/server" },
+      "presentation": { "panel": "dedicated", "reveal": "always" },
+      "problemMatcher": []
+    },
+    {
+      "label": "start: client + server",
+      "detail": "Both of the above, side by side",
+      "dependsOn": ["server: start", "client: start"],
+      "dependsOrder": "parallel",
+      "problemMatcher": []
+    }
+  ]
+}

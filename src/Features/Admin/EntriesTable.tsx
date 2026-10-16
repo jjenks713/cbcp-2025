@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react';
+import { useMemo, useState, type ReactNode } from 'react';
 
 import Box from '@mui/material/Box';
 import Paper from '@mui/material/Paper';
@@ -23,6 +23,7 @@ import EditIcon from '@mui/icons-material/Edit';
 import CloseIcon from '@mui/icons-material/Close';
 import ImageIcon from '@mui/icons-material/Image';
 import SearchIcon from '@mui/icons-material/Search';
+import ClearIcon from '@mui/icons-material/Clear';
 
 import {
   thumbUrl,
@@ -45,6 +46,9 @@ type Props = {
   onEdit: (entry: Entry) => void;
   onDelete: (entry: Entry) => void;
   onToggleShow: (entry: Entry, show: boolean) => Promise<void>;
+  // An extra column after the field columns (e.g. shop items' stock),
+  // whose cells handle their own clicks.
+  extraColumn?: { header: string; render: (entry: Entry) => ReactNode };
 };
 
 type Visibility = 'all' | 'shown' | 'hidden';
@@ -87,6 +91,7 @@ export default function EntriesTable({
   onEdit,
   onDelete,
   onToggleShow,
+  extraColumn,
 }: Props) {
   const [search, setSearch] = useState('');
   const [filterId, setFilterId] = useState('');
@@ -208,7 +213,8 @@ export default function EntriesTable({
     );
   }
 
-  const columnCount = (imageField ? 1 : 0) + 1 + summaryFields.length + (hasShowField ? 1 : 0) + 2;
+  const columnCount =
+    (imageField ? 1 : 0) + 1 + summaryFields.length + (extraColumn ? 1 : 0) + (hasShowField ? 1 : 0) + 2;
 
   return (
     <Stack spacing={2}>
@@ -227,6 +233,19 @@ export default function EntriesTable({
               startAdornment: (
                 <InputAdornment position="start">
                   <SearchIcon fontSize="small" />
+                </InputAdornment>
+              ),
+              endAdornment: search && (
+                <InputAdornment position="end">
+                  <IconButton
+                    size="small"
+                    onClick={() => {
+                      setSearch('');
+                      setPage(0);
+                    }}
+                  >
+                    <ClearIcon fontSize="small" />
+                  </IconButton>
                 </InputAdornment>
               ),
             },
@@ -292,6 +311,7 @@ export default function EntriesTable({
                   {field.name}
                 </TableCell>
               ))}
+              {extraColumn && <TableCell>{extraColumn.header}</TableCell>}
               {hasShowField && <TableCell sx={{ width: 110 }}>Show in App</TableCell>}
               <TableCell sx={{ display: { xs: 'none', sm: 'table-cell' } }}>Updated</TableCell>
               <TableCell align="right" sx={{ width: 96 }} />
@@ -331,6 +351,9 @@ export default function EntriesTable({
                       {formatValue(field, entry.fields[field.id])}
                     </TableCell>
                   ))}
+                  {extraColumn && (
+                    <TableCell onClick={(e) => e.stopPropagation()}>{extraColumn.render(entry)}</TableCell>
+                  )}
                   {hasShowField && (
                     <TableCell onClick={(e) => e.stopPropagation()}>
                       <Switch

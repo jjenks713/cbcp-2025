@@ -1,5 +1,5 @@
-import { useMemo, useState } from 'react';
-import { useNavigate, useParams } from 'react-router-dom';
+import { useEffect, useMemo, useRef, useState } from 'react';
+import { useNavigate, useParams, useSearchParams } from 'react-router-dom';
 
 import Box from '@mui/material/Box';
 import Stack from '@mui/material/Stack';
@@ -9,8 +9,11 @@ import Container from '@mui/material/Container';
 import Typography from '@mui/material/Typography';
 
 import { useResponsive } from '../../hooks/use-responsive';
-import { useShopCategoryList, useShopItems } from '../../hooks/queries/content';
-import { type ShopCategoryOption, type ShopItem } from '../../lib/contentful';
+import { useShopCategoryList } from '../../hooks/queries/content';
+import { useShopCatalog, type ShopItem } from '../../hooks/queries/shop';
+import { type ShopCategoryOption } from '../../lib/contentful';
+import { useCart } from '../../lib/cart-context';
+import { ITEM_PARAM } from './item-link';
 import ShopItemCard, { ShopItemCardSkeleton } from './ShopItemCard';
 import { ShopCategoryChips, ShopCategorySidebar, type CategoryNode } from './ShopCategoryFilter';
 
@@ -68,7 +71,7 @@ export default function Shop() {
   const [sort, setSort] = useState<Sort>('newest');
 
   const categoriesQuery = useShopCategoryList();
-  const itemsQuery = useShopItems();
+  const itemsQuery = useShopCatalog();
   const categories = useMemo(() => categoriesQuery.data ?? [], [categoriesQuery.data]);
   const tree = useMemo(() => buildTree(categories), [categories]);
   const selectedCategory = categories.find((c) => c.slug === categorySlug);
@@ -81,6 +84,34 @@ export default function Shop() {
   }, [itemsQuery.data, selectedCategory, categories, sort]);
 
   const selectCategory = (slug?: string) => navigate(slug ? `/shop/${slug}` : '/shop');
+
+  // ?item=<id> (e.g. an item name clicked in the cart) opens that item's
+  // drawer; once the drawer closes, the param is dropped so a refresh
+  // doesn't reopen it.
+  const [searchParams, setSearchParams] = useSearchParams();
+  const linkedItemId = searchParams.get(ITEM_PARAM);
+  const { itemDrawerId, openItem } = useCart();
+  useEffect(() => {
+    if (linkedItemId) openItem(linkedItemId);
+  }, [linkedItemId, openItem]);
+  const drawerWasOpen = useRef(false);
+  useEffect(() => {
+    if (itemDrawerId) {
+      drawerWasOpen.current = true;
+    } else if (drawerWasOpen.current) {
+      drawerWasOpen.current = false;
+      if (linkedItemId) {
+        setSearchParams(
+          (prev) => {
+            const next = new URLSearchParams(prev);
+            next.delete(ITEM_PARAM);
+            return next;
+          },
+          { replace: true }
+        );
+      }
+    }
+  }, [itemDrawerId, linkedItemId, setSearchParams]);
 
   // A link to a category that's hidden or gone - show everything instead.
   const unknownCategory = Boolean(categorySlug) && !loading && !selectedCategory;
