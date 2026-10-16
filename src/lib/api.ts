@@ -13,10 +13,13 @@ async function request<T>(path: string, options: RequestInit = {}): Promise<T> {
     throw new ApiError('API is not configured (REACT_APP_API_URL is blank)', 0);
   }
 
+  // FormData bodies (file uploads) need the browser to set its own
+  // multipart Content-Type, boundary included.
+  const isFormData = options.body instanceof FormData;
   const res = await fetch(`${API_URL}${path}`, {
     ...options,
     headers: {
-      'Content-Type': 'application/json',
+      ...(isFormData ? {} : { 'Content-Type': 'application/json' }),
       ...options.headers,
     },
   });
