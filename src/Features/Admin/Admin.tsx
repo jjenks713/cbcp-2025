@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useMemo, useState } from 'react';
 
 import Box from '@mui/material/Box';
 import Tab from '@mui/material/Tab';
@@ -6,20 +6,25 @@ import Tabs from '@mui/material/Tabs';
 import Alert from '@mui/material/Alert';
 import Stack from '@mui/material/Stack';
 import Button from '@mui/material/Button';
-import Container from '@mui/material/Container';
 import Typography from '@mui/material/Typography';
 import CircularProgress from '@mui/material/CircularProgress';
-import { ThemeProvider } from '@mui/material/styles';
 import AddIcon from '@mui/icons-material/Add';
 import CollectionsIcon from '@mui/icons-material/Collections';
 
 import EntriesTable from './EntriesTable';
 import BulkAddDialog from './BulkAddDialog';
+import { BULK_ADD_CONFIGS } from './bulkAddConfigs';
 import EntryFormDialog from './EntryFormDialog';
 import ConfirmDeleteDialog from './ConfirmDeleteDialog';
-import { createAdminTheme } from '../../Theme';
-import { useAuth } from '../../lib/auth-context';
-import { createAdminApi, entryPathLabel, type Asset, type Entry, type ContentType } from '../../lib/admin-contentful';
+import { entryPathLabel, type Asset, type Entry, type ContentType } from '../../lib/admin-contentful';
+import {
+  useAssets,
+  useContentTypes,
+  useDeleteEntry,
+  useEntriesByType,
+  useSaveEntry,
+  useUploadAsset,
+} from '../../hooks/queries/admin';
 
 // Tabs follow how often each type gets edited; anything added in
 // Contentful later goes after these, alphabetically.
@@ -41,121 +46,74 @@ function linkedTypeIds(ct: ContentType) {
 
 type EntryTarget = { contentType: ContentType; entry: Entry };
 
+const NO_ASSETS: Asset[] = [];
+
+// Content editor - the Admin tab of the account page, which supplies the
+// admin theme and only mounts this for admins. Lazy-loaded (see
+// App/Routes.tsx), so its code and its Contentful requests never reach
+// anyone else.
 export default function Admin() {
-  const theme = useMemo(() => createAdminTheme(), []);
-  return (
-    <ThemeProvider theme={theme}>
-      <AdminPanel />
-    </ThemeProvider>
-  );
-}
+  const contentTypesQuery = useContentTypes();
+  const assetsQuery = useAssets();
+  const { mutateAsync: saveEntry } = useSaveEntry();
+  const { mutateAsync: deleteEntry } = useDeleteEntry();
+  const { mutateAsync: uploadAsset } = useUploadAsset();
 
-function AdminPanel() {
-  const { token } = useAuth();
-  const api = useMemo(() => createAdminApi(token), [token]);
+  const contentTypes = useMemo(() => sortContentTypes(contentTypesQuery.data ?? []), [contentTypesQuery.data]);
+  const assets = assetsQuery.data ?? NO_ASSETS;
 
-  const [contentTypes, setContentTypes] = useState<ContentType[]>([]);
-  const [assets, setAssets] = useState<Asset[]>([]);
-  const [entriesByType, setEntriesByType] = useState<Record<string, Entry[] | undefined>>({});
-  const [activeTypeId, setActiveTypeId] = useState('');
+  // First tab until one is picked.
+  const [chosenTypeId, setActiveTypeId] = useState('');
+  const activeTypeId = chosenTypeId || contentTypes[0]?.id || '';
   // entry is null when adding a new one
   const [editing, setEditing] = useState<{ contentType: ContentType; entry: Entry | null } | null>(null);
   const [deleting, setDeleting] = useState<EntryTarget | null>(null);
   const [bulkOpen, setBulkOpen] = useState(false);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState('');
-  const requestedTypes = useRef(new Set<string>());
-
-  useEffect(() => {
-    Promise.all([api.getContentTypes(), api.getAssets()])
-      .then(([types, allAssets]) => {
-        const sorted = sortContentTypes(types);
-        setContentTypes(sorted);
-        setAssets(allAssets);
-        setActiveTypeId((current) => current || sorted[0]?.id || '');
-      })
-      .catch((err) => setError(err instanceof Error ? err.message : 'Failed to load content types'))
-      .finally(() => setLoading(false));
-  }, [api]);
-
-  // Each type's entries are fetched once, the first time they're needed.
-  const loadEntries = useCallback(
-    (typeId: string) => {
-      if (requestedTypes.current.has(typeId)) return;
-      requestedTypes.current.add(typeId);
-      api
-        .getEntries(typeId)
-        .then((entries) => setEntriesByType((prev) => ({ ...prev, [typeId]: entries })))
-        .catch((err) => {
-          requestedTypes.current.delete(typeId);
-          setError(err instanceof Error ? err.message : `Failed to load ${typeId} entries`);
-        });
-    },
-    [api]
-  );
 
   const activeType = contentTypes.find((ct) => ct.id === activeTypeId);
-
-  useEffect(() => {
-    if (!activeType) return;
-    [activeType.id, ...linkedTypeIds(activeType)].forEach(loadEntries);
-  }, [activeType, loadEntries]);
-
-  const handleUpload = useCallback(
-    async (file: File, title?: string) => {
-      const asset = await api.uploadAsset(file, title);
-      setAssets((prev) => [asset, ...prev]);
-      return asset;
-    },
-    [api]
+  // The active type's entries, plus those of every type it links to (to
+  // show link fields by name and offer them in the form/bulk add).
+  const neededTypeIds = useMemo(
+    () => (activeType ? Array.from(new Set([activeType.id, ...linkedTypeIds(activeType)])) : []),
+    [activeType]
   );
+  const { entriesByType, error: entriesError, refetch: refetchEntries } = useEntriesByType(neededTypeIds);
 
-  // Replaces an updated entry in place, or adds a new one.
-  const storeEntry = useCallback((typeId: string, saved: Entry) => {
-    setEntriesByType((prev) => {
-      const list = prev[typeId] ?? [];
-      const exists = list.some((e) => e.id === saved.id);
-      return { ...prev, [typeId]: exists ? list.map((e) => (e.id === saved.id ? saved : e)) : [saved, ...list] };
-    });
-  }, []);
+  const loading = contentTypesQuery.isPending || assetsQuery.isPending;
+  const loadError = contentTypesQuery.error ?? assetsQuery.error ?? entriesError;
+  const retryLoad = () => {
+    contentTypesQuery.refetch();
+    assetsQuery.refetch();
+    refetchEntries();
+  };
+
+  const handleUpload = useCallback((file: File, title?: string) => uploadAsset({ file, title }), [uploadAsset]);
 
   // Inline Show in App switch on the table: flips just that one field.
   const handleToggleShow = useCallback(
     async (contentType: ContentType, entry: Entry, showInApp: boolean) => {
-      const saved = await api.updateEntry(contentType.id, entry.id, { showInApp });
-      storeEntry(contentType.id, saved);
+      await saveEntry({ contentTypeId: contentType.id, entryId: entry.id, fields: { showInApp } });
     },
-    [api, storeEntry]
+    [saveEntry]
   );
 
   const handleSave = async (fields: Entry['fields']) => {
     if (!editing) return;
     const { contentType, entry } = editing;
-    const saved = entry
-      ? await api.updateEntry(contentType.id, entry.id, fields)
-      : await api.createEntry(contentType.id, fields);
-    storeEntry(contentType.id, saved);
+    await saveEntry({ contentTypeId: contentType.id, entryId: entry?.id, fields });
     setEditing(null);
   };
 
   const handleDelete = async () => {
     if (!deleting) return;
     const { contentType, entry } = deleting;
-    await api.deleteEntry(contentType.id, entry.id);
-    setEntriesByType((prev) => ({
-      ...prev,
-      [contentType.id]: (prev[contentType.id] ?? []).filter((e) => e.id !== entry.id),
-    }));
+    await deleteEntry({ contentTypeId: contentType.id, entryId: entry.id });
     setDeleting(null);
   };
 
   const handleBulkCreate = useCallback(
-    async (fields: Entry['fields']) => {
-      const created = await api.createEntry('shopItem', fields);
-      storeEntry('shopItem', created);
-      return created;
-    },
-    [api, storeEntry]
+    (contentTypeId: string, fields: Entry['fields']) => saveEntry({ contentTypeId, fields }),
+    [saveEntry]
   );
 
   const pathLabel = (entry: Entry, contentType: ContentType | undefined) =>
@@ -163,25 +121,29 @@ function AdminPanel() {
 
   if (loading) {
     return (
-      <Box sx={{ display: 'flex', justifyContent: 'center', py: 15 }}>
+      <Box sx={{ display: 'flex', justifyContent: 'center', py: 8 }}>
         <CircularProgress color="primary" />
       </Box>
     );
   }
 
   const activeEntries = activeType ? entriesByType[activeType.id] : undefined;
-  const shopCategoryType = contentTypes.find((ct) => ct.id === 'shopCategory');
+  const bulkConfig = activeType ? BULK_ADD_CONFIGS[activeType.id] : undefined;
+  const bulkCategoryType = contentTypes.find((ct) => ct.id === bulkConfig?.categoryTypeId);
 
   return (
-    <Container maxWidth="lg" sx={{ py: { xs: 6, md: 10 }, color: 'text.primary' }}>
+    <Box sx={{ color: 'text.primary' }}>
       <Stack spacing={4}>
-        <Typography variant="h3" sx={{ color: 'primary.main' }}>
-          Content Admin
-        </Typography>
-
-        {error && (
-          <Alert severity="error" onClose={() => setError('')}>
-            {error}
+        {loadError && (
+          <Alert
+            severity="error"
+            action={
+              <Button color="inherit" size="small" onClick={retryLoad}>
+                Retry
+              </Button>
+            }
+          >
+            {loadError.message || 'Failed to load content'}
           </Alert>
         )}
 
@@ -212,7 +174,7 @@ function AdminPanel() {
                 )}
               </Typography>
               <Stack direction="row" spacing={1}>
-                {activeType.id === 'shopItem' && (
+                {bulkConfig && (
                   <Button variant="outlined" startIcon={<CollectionsIcon />} onClick={() => setBulkOpen(true)}>
                     Bulk Add
                   </Button>
@@ -265,18 +227,18 @@ function AdminPanel() {
         />
       )}
 
-      {bulkOpen && (
+      {bulkOpen && bulkConfig && (
         <BulkAddDialog
-          categoryOptions={(entriesByType.shopCategory ?? [])
-            .map((cat) => ({ id: cat.id, label: pathLabel(cat, shopCategoryType) }))
+          key={bulkConfig.contentTypeId}
+          config={bulkConfig}
+          categoryOptions={(entriesByType[bulkConfig.categoryTypeId] ?? [])
+            .map((cat) => ({ id: cat.id, label: pathLabel(cat, bulkCategoryType) }))
             .sort((a, b) => a.label.localeCompare(b.label))}
-          existingItemIds={(entriesByType.shopItem ?? []).map((item) => String(item.fields.itemId ?? ''))}
-          itemIdField={contentTypes.find((ct) => ct.id === 'shopItem')?.fields.find((f) => f.id === 'itemId')}
           onUpload={handleUpload}
-          onCreate={handleBulkCreate}
+          onCreate={(fields) => handleBulkCreate(bulkConfig.contentTypeId, fields)}
           onClose={() => setBulkOpen(false)}
         />
       )}
-    </Container>
+    </Box>
   );
 }

@@ -16,8 +16,7 @@ import type { Theme } from '@mui/material/styles';
 
 import TextMaxLine from '../../components/text-max-line';
 import { MotionViewport, varFade, varZoom } from '../../components/animate';
-import { useContentfulList } from '../../hooks/useContentfulData';
-import { getShopCategories } from '../../lib/contentful';
+import { useShopCategories, withFallback } from '../../hooks/queries/content';
 import { ETSY_SHOP_URL } from '../../lib/links';
 
 // 'secondary' is deliberately excluded — it's the theme's near-black
@@ -67,7 +66,7 @@ const FALLBACK_PRODUCTS = [
 ];
 
 export default function CBCPShop() {
-  const PRODUCTS = useContentfulList(getShopCategories, FALLBACK_PRODUCTS);
+  const PRODUCTS = withFallback(useShopCategories().data, FALLBACK_PRODUCTS);
 
   return (
     <Container component={MotionViewport} sx={{ py: { xs: 5, md: 10 } }}>

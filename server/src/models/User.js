@@ -15,15 +15,21 @@ const userSchema = new mongoose.Schema(
       type: String,
       required: true,
     },
-    name: {
+    firstName: {
       type: String,
       trim: true,
     },
-    role: {
+    lastName: {
       type: String,
-      enum: ['user', 'admin'],
-      default: 'user',
+      trim: true,
     },
+    // Free-form for now; null until the user provides one.
+    address: {
+      type: String,
+      trim: true,
+      default: null,
+    },
+    // Roles live in the userRoles collection (models/UserRole.js).
   },
   { timestamps: true }
 );

@@ -1,10 +1,13 @@
 import React, { useState } from 'react';
-import { Button, Stack, Typography, IconButton, Drawer, Box } from '@mui/material';
+import { Button, Stack, Typography, IconButton, Drawer, Box, Avatar, Menu, MenuItem, Divider, ListItemIcon } from '@mui/material';
 import MenuIcon from '@mui/icons-material/Menu';
 import CloseIcon from '@mui/icons-material/Close';
+import PersonIcon from '@mui/icons-material/Person';
+import LogoutIcon from '@mui/icons-material/Logout';
+import EditNoteIcon from '@mui/icons-material/EditNote';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { useResponsive } from '../hooks/use-responsive';
-import { useAuth } from '../lib/auth-context';
+import { useAuth, hasRole, type AuthUser } from '../lib/auth-context';
 import { ETSY_SHOP_URL } from '../lib/links';
 import { scrollToTopAndReset } from '../lib/scrollReset';
 
@@ -18,17 +21,37 @@ const NAV_LINKS = [
     { label: 'Shop', path: ETSY_SHOP_URL, external: true },
 ];
 
+// Nav labels show as written ("Home", "Log Out"), not the buttons' default all caps.
+const LINK_SX = { textTransform: 'none' } as const;
+
+// Desktop nav links also sit closer together than the theme's default
+// button padding (30px a side, forced with !important) allows.
+const DESKTOP_LINK_SX = { ...LINK_SX, padding: '8px 12px !important', minWidth: 0 };
+const DRAWER_LINK_SX = { ...LINK_SX, justifyContent: 'flex-start' };
+
+// "Josh Jenkin" -> "JJ"; falls back to the email's first letter.
+function initials(user: AuthUser) {
+    const fromName = [user.firstName, user.lastName].map((part) => part?.trim().charAt(0) ?? '').join('');
+    return (fromName || user.email.charAt(0)).toUpperCase();
+}
+
 const Navigation = () => {
     const navigate = useNavigate();
     const location = useLocation();
     const { user, logout } = useAuth();
     const mdUp = useResponsive('up', 'md');
     const [mobileOpen, setMobileOpen] = useState(false);
-    const navLinks = [
-        ...NAV_LINKS,
-        ...(user ? [{ label: 'Account', path: '/account' }] : []),
-        ...(user?.role === 'admin' ? [{ label: 'Admin', path: '/admin' }] : []),
+    // Anchor for the user menu opened from the avatar (desktop).
+    const [userMenuAnchor, setUserMenuAnchor] = useState<HTMLElement | null>(null);
+    // Where a logged-in user's own pages live - in the avatar menu on
+    // desktop, at the bottom of the drawer on mobile.
+    const accountLinks = [
+        { label: 'Account', path: '/account', icon: <PersonIcon fontSize="small" /> },
+        ...(hasRole(user, 'admin')
+            ? [{ label: 'Admin', path: '/account/admin', icon: <EditNoteIcon fontSize="small" /> }]
+            : []),
     ];
+    const userName = user ? [user.firstName, user.lastName].filter(Boolean).join(' ') : '';
 
     const go = (path: string, external?: boolean) => {
         if (external) {
@@ -42,12 +65,14 @@ const Navigation = () => {
             navigate(path);
         }
         setMobileOpen(false);
+        setUserMenuAnchor(null);
     };
 
     const handleLogout = () => {
         logout();
         navigate('/login');
         setMobileOpen(false);
+        setUserMenuAnchor(null);
     };
 
     return (
@@ -75,13 +100,56 @@ const Navigation = () => {
             </Typography>
 
             {mdUp ? (
-                <Stack direction="row" spacing={2} alignItems="center" justifyContent="center">
-                    {navLinks.map((link) => (
-                        <Button key={link.path} variant={link.path === '/' ? undefined : 'text'} onClick={() => go(link.path, link.external)}>
+                <Stack direction="row" spacing={0.5} alignItems="center" justifyContent="center">
+                    {NAV_LINKS.map((link) => (
+                        <Button key={link.path} variant={link.path === '/' ? undefined : 'text'} sx={DESKTOP_LINK_SX} onClick={() => go(link.path, link.external)}>
                             {link.label}
                         </Button>
                     ))}
-                    {user && <Button variant="text" onClick={handleLogout}>Log Out</Button>}
+                    {user && (
+                        <>
+                            <IconButton
+                                onClick={(e) => setUserMenuAnchor(e.currentTarget)}
+                                aria-label="Open account menu"
+                                aria-haspopup="menu"
+                                aria-expanded={Boolean(userMenuAnchor)}
+                                sx={{ ml: 1, p: 0.5 }}
+                            >
+                                <Avatar sx={{ width: 34, height: 34, fontSize: 14, bgcolor: 'primary.main', color: 'secondary.main' }}>
+                                    {initials(user)}
+                                </Avatar>
+                            </IconButton>
+                            <Menu
+                                anchorEl={userMenuAnchor}
+                                open={Boolean(userMenuAnchor)}
+                                onClose={() => setUserMenuAnchor(null)}
+                                anchorOrigin={{ vertical: 'bottom', horizontal: 'right' }}
+                                transformOrigin={{ vertical: 'top', horizontal: 'right' }}
+                                slotProps={{
+                                    paper: {
+                                        sx: { mt: 1, minWidth: 200, bgcolor: 'secondary.main', color: 'common.white', border: 1, borderColor: 'rgba(255, 255, 255, 0.12)' },
+                                    },
+                                }}
+                            >
+                                <Box sx={{ px: 2, py: 1 }}>
+                                    {userName && <Typography sx={{ fontWeight: 600 }}>{userName}</Typography>}
+                                    <Typography variant="body2" sx={{ color: 'rgba(255, 255, 255, 0.7)' }}>{user.email}</Typography>
+                                </Box>
+                                <Divider sx={{ borderColor: 'rgba(255, 255, 255, 0.12)' }} />
+                                {accountLinks.map((link) => (
+                                    <MenuItem key={link.path} selected={location.pathname === link.path} onClick={() => go(link.path)}>
+                                        <ListItemIcon sx={{ color: 'inherit' }}>{link.icon}</ListItemIcon>
+                                        {link.label}
+                                    </MenuItem>
+                                ))}
+                                <Divider sx={{ borderColor: 'rgba(255, 255, 255, 0.12)' }} />
+                                <MenuItem onClick={handleLogout}>
+                                    <ListItemIcon sx={{ color: 'inherit' }}><LogoutIcon fontSize="small" /></ListItemIcon>
+                                    Log Out
+                                </MenuItem>
+                            </Menu>
+                        </>
+                    )}
                 </Stack>
             ) : (
                 <IconButton onClick={() => setMobileOpen(true)} aria-label="Open menu" sx={{ color: 'common.white' }}>
@@ -97,26 +165,42 @@ const Navigation = () => {
                         </IconButton>
                     </Stack>
                     <Stack spacing={1} px={2}>
-                        {navLinks.map((link) => (
+                        {NAV_LINKS.map((link) => (
                             <Button
                                 key={link.path}
                                 fullWidth
                                 size="large"
-                                sx={{ justifyContent: 'flex-start' }}
+                                sx={DRAWER_LINK_SX}
                                 onClick={() => go(link.path, link.external)}
                             >
                                 {link.label}
                             </Button>
                         ))}
                         {user && (
-                            <Button
-                                fullWidth
-                                size="large"
-                                sx={{ justifyContent: 'flex-start' }}
-                                onClick={handleLogout}
-                            >
-                                Log Out
-                            </Button>
+                            <>
+                                <Divider sx={{ borderColor: 'rgba(255, 255, 255, 0.12)' }} />
+                                {accountLinks.map((link) => (
+                                    <Button
+                                        key={link.path}
+                                        fullWidth
+                                        size="large"
+                                        startIcon={link.icon}
+                                        sx={DRAWER_LINK_SX}
+                                        onClick={() => go(link.path)}
+                                    >
+                                        {link.label}
+                                    </Button>
+                                ))}
+                                <Button
+                                    fullWidth
+                                    size="large"
+                                    startIcon={<LogoutIcon fontSize="small" />}
+                                    sx={DRAWER_LINK_SX}
+                                    onClick={handleLogout}
+                                >
+                                    Log Out
+                                </Button>
+                            </>
                         )}
                     </Stack>
                 </Box>
