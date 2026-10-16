@@ -1,5 +1,5 @@
-#base image
-FROM node:26.11.1
+#build stage
+FROM node:26.11.1 AS build
 #working directory
 WORKDIR /app
 #add binaries to $PATH
@@ -11,5 +11,11 @@ RUN npm install
 #copy app files and build
 COPY . /app
 RUN npm run build
-# start app
-CMD [ "npm", "start" ]
+
+#serve stage - static files only, no dev server/webpack in the final image
+FROM node:26.11.1-slim
+WORKDIR /app
+RUN npm install -g serve
+COPY --from=build /app/build ./build
+# Cloud Run injects $PORT; -s rewrites unknown paths to index.html for react-router
+CMD ["sh", "-c", "serve -s build -l ${PORT:-8080}"]
