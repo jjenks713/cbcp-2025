@@ -5,8 +5,8 @@ import Stack from '@mui/material/Stack';
 import Button from '@mui/material/Button';
 import Container from '@mui/material/Container';
 import Typography from '@mui/material/Typography';
+import ChevronRight from '@mui/icons-material/ChevronRight';
 
-import Iconify from '../../components/iconify';
 import { RouterLink } from '../../components/RouterLink';
 import { MotionViewport, varFade, varZoom } from '../../components/animate';
 import Carousel, { useCarousel, CarouselDots, CarouselArrows } from '../../components/carousel';
@@ -37,7 +37,7 @@ export default function CBCPLatestArt() {
     <Button
       component={RouterLink}
       href="/gallery"
-      endIcon={<Iconify icon="carbon:chevron-right" />}
+      endIcon={<ChevronRight />}
     >
       View Gallery
     </Button>

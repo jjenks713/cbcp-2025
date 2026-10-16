@@ -8,9 +8,10 @@ import Container from '@mui/material/Container';
 import Typography from '@mui/material/Typography';
 import AccordionDetails from '@mui/material/AccordionDetails';
 import AccordionSummary, { accordionSummaryClasses } from '@mui/material/AccordionSummary';
+import AddIcon from '@mui/icons-material/Add';
+import RemoveIcon from '@mui/icons-material/Remove';
 
 import Image from '../../components/image';
-import Iconify from '../../components/iconify';
 import { MotionViewport, varFade, varZoom } from '../../components/animate';
 import { useResponsive } from '../../hooks/use-responsive';
 import { useContentfulList } from '../../hooks/useContentfulData';
@@ -110,10 +111,11 @@ export default function CBCPFaqs() {
                   <Typography variant="h6" sx={{ flexGrow: 1, border: 'none' }}>
                     {faq.question}
                   </Typography>
-                  <Iconify
-                    width={24}
-                    icon={expanded === faq.question ? 'carbon:subtract' : 'carbon:add'}
-                  />
+                  {expanded === faq.question ? (
+                    <RemoveIcon sx={{ fontSize: 24 }} />
+                  ) : (
+                    <AddIcon sx={{ fontSize: 24 }} />
+                  )}
                 </AccordionSummary>
                 <AccordionDetails sx={{ bgcolor: 'secondary.main' }}>
                   {/*

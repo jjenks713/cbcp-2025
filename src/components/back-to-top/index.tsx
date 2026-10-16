@@ -2,8 +2,8 @@ import { useEffect, useState } from 'react';
 
 import Fab from '@mui/material/Fab';
 import Zoom from '@mui/material/Zoom';
+import KeyboardArrowUp from '@mui/icons-material/KeyboardArrowUp';
 
-import Iconify from '../iconify';
 import { scrollToTopAndReset } from '../../lib/scrollReset';
 
 const SCROLL_THRESHOLD = 400;
@@ -34,7 +34,7 @@ export default function BackToTop() {
           zIndex: 1100,
         }}
       >
-        <Iconify icon="carbon:arrow-up" />
+        <KeyboardArrowUp />
       </Fab>
     </Zoom>
   );

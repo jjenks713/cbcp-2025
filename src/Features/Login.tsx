@@ -10,6 +10,7 @@ import Container from '@mui/material/Container';
 import TextField from '@mui/material/TextField';
 import Typography from '@mui/material/Typography';
 import InputAdornment from '@mui/material/InputAdornment';
+import Email from '@mui/icons-material/Email';
 import Visibility from '@mui/icons-material/Visibility';
 import VisibilityOff from '@mui/icons-material/VisibilityOff';
 
@@ -57,6 +58,15 @@ export default function Login() {
               fullWidth
               variant="filled"
               disabled={submitting}
+              slotProps={{
+                input: {
+                  endAdornment: (
+                    <InputAdornment position="end">
+                      <Email color="primary" fontSize="small" />
+                    </InputAdornment>
+                  ),
+                },
+              }}
             />
             <TextField
               label="Password"
@@ -77,7 +87,7 @@ export default function Login() {
                         edge="end"
                         aria-label={showPassword ? 'Hide password' : 'Show password'}
                       >
-                        {showPassword ? <VisibilityOff fontSize="small" /> : <Visibility fontSize="small" />}
+                        {showPassword ? <VisibilityOff color="primary" fontSize="small" /> : <Visibility color="primary" fontSize="small" />}
                       </IconButton>
                     </InputAdornment>
                   ),
