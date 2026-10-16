@@ -66,6 +66,12 @@ function normalizePattern(validations) {
   return v ? { pattern: v.regexp.pattern, flags: v.regexp.flags || undefined, message: v.message } : undefined;
 }
 
+/** A field's range validation (numbers), if any - e.g. price/stock can't go below 0. */
+function normalizeRange(validations) {
+  const v = validations?.find((x) => x.range);
+  return v ? { min: v.range.min, max: v.range.max, message: v.message } : undefined;
+}
+
 /** Content type schema trimmed to what the admin UI needs to render a form/table. */
 function normalizeContentType(ct) {
   return {
@@ -82,6 +88,7 @@ function normalizeContentType(ct) {
         linkType: f.linkType,
         linkContentTypes: f.validations?.find((v) => v.linkContentType)?.linkContentType,
         pattern: normalizePattern(f.validations),
+        range: normalizeRange(f.validations),
         items: f.items
           ? {
               type: f.items.type,

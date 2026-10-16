@@ -2,11 +2,11 @@ import { Navigate, Outlet } from 'react-router-dom';
 import Box from '@mui/material/Box';
 import CircularProgress from '@mui/material/CircularProgress';
 
-import { useAuth, type AuthUser } from '../lib/auth-context';
+import { useAuth, hasRole, type Role } from '../lib/auth-context';
 
 type Props = {
-  // Restrict to a role on top of being logged in; anyone else lands on /account.
-  role?: AuthUser['role'];
+  // Require a role on top of being logged in; anyone without it lands on /account.
+  role?: Role;
 };
 
 export default function RequireAuth({ role }: Props) {
@@ -24,7 +24,7 @@ export default function RequireAuth({ role }: Props) {
     return <Navigate to="/login" replace />;
   }
 
-  if (role && user.role !== role) {
+  if (role && !hasRole(user, role)) {
     return <Navigate to="/account" replace />;
   }
 

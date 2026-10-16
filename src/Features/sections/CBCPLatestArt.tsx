@@ -11,14 +11,14 @@ import { RouterLink } from '../../components/RouterLink';
 import { MotionViewport, varFade, varZoom } from '../../components/animate';
 import Carousel, { useCarousel, CarouselDots, CarouselArrows } from '../../components/carousel';
 import { useResponsive } from '../../hooks/use-responsive';
-import { useContentfulList } from '../../hooks/useContentfulData';
-import { getArtworks, type ArtItem as ArtItemData } from '../../lib/contentful';
+import { useArtworks } from '../../hooks/queries/content';
+import { type ArtItem as ArtItemData } from '../../lib/contentful';
 import { galleryPieceHref } from '../../lib/galleryLink';
 
 export default function CBCPLatestArt() {
   const mdUp = useResponsive('up', 'md');
   const smUp = useResponsive('up', 'sm');
-  const ART_ITEMS = useContentfulList(() => getArtworks({ featuredOnly: true }), [] as ArtItemData[]);
+  const ART_ITEMS: ArtItemData[] = useArtworks({ featuredOnly: true }).data ?? [];
 
   // react-slick's own `responsive` breakpoints only re-check on a media
   // query *change* event — if the page loads already inside the smallest

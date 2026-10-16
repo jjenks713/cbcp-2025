@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useMemo, useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
 
 import Box from '@mui/material/Box';
@@ -18,7 +18,8 @@ import { RouterLink } from '../components/RouterLink';
 import ArtworkModal from '../components/artwork-modal';
 import { varHover, varTranHover, MotionViewport, varZoom } from '../components/animate';
 import { useResponsive } from '../hooks/use-responsive';
-import { getArtworks, getCategories, type ArtItem, type Category } from '../lib/contentful';
+import { useArtworks, useCategories } from '../hooks/queries/content';
+import { type ArtItem, type Category } from '../lib/contentful';
 import { PIECE_PARAM, galleryPieceHref } from '../lib/galleryLink';
 
 // Flat display order for the gallery's tabs — Prints and Artist Books are
@@ -38,15 +39,33 @@ function sortCategories(categories: Category[]): Category[] {
   });
 }
 
-export default function Gallery() {
-  const [categories, setCategories] = useState<Category[]>([]);
-  const [artworks, setArtworks] = useState<ArtItem[]>([]);
-  const [loading, setLoading] = useState(true);
+const NO_ARTWORKS: ArtItem[] = [];
 
-  const [topTab, setTopTab] = useState<string>('');
+export default function Gallery() {
+  const categoriesQuery = useCategories();
+  const artworksQuery = useArtworks();
+  const categories = useMemo(() => sortCategories(categoriesQuery.data ?? []), [categoriesQuery.data]);
+  const artworks = artworksQuery.data ?? NO_ARTWORKS;
+  const loading = categoriesQuery.isPending || artworksQuery.isPending;
 
   const [searchParams, setSearchParams] = useSearchParams();
   const openPieceId = searchParams.get(PIECE_PARAM);
+  // The piece in the URL when the page first opened (e.g. a home page card
+  // linking straight to it) - read once, so opening/closing pieces later
+  // doesn't move the default tab.
+  const [initialPieceId] = useState(openPieceId);
+
+  // Default to the Prints tab - unless we're deep-linking straight to a
+  // piece, in which case show whichever tab that piece actually lives in
+  // so the grid behind the modal matches what's open. Picking a tab
+  // replaces the default.
+  const [chosenTab, setTopTab] = useState('');
+  const defaultTab = useMemo(() => {
+    const piece = artworks.find((a) => a.id === initialPieceId);
+    const printsCategory = categories.find((c) => c.name === 'Prints');
+    return piece?.categoryIds?.[0] ?? printsCategory?.id ?? categories[0]?.id ?? '';
+  }, [artworks, categories, initialPieceId]);
+  const topTab = chosenTab || defaultTab;
   const openPiece = artworks.find((a) => a.id === openPieceId) ?? null;
 
   const closeModal = () => {
@@ -59,31 +78,6 @@ export default function Gallery() {
       { replace: true }
     );
   };
-
-  useEffect(() => {
-    let active = true;
-    Promise.all([getCategories(), getArtworks()]).then(([cats, art]) => {
-      if (!active) return;
-      const sorted = sortCategories(cats);
-      setCategories(sorted);
-      setArtworks(art);
-      setLoading(false);
-
-      // Default to the Prints tab — unless we're deep-linking straight to
-      // a piece (e.g. from a home page card), in which case show whichever
-      // tab that piece actually lives in so the grid behind the modal
-      // matches what's open.
-      const pieceId = searchParams.get(PIECE_PARAM);
-      const piece = art.find((a) => a.id === pieceId);
-      const preferredId = piece?.categoryIds?.[0];
-      const printsCategory = sorted.find((c) => c.name === 'Prints');
-      setTopTab(preferredId ?? printsCategory?.id ?? sorted[0]?.id ?? '');
-    });
-    return () => {
-      active = false;
-    };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
 
   const filtered = useMemo(
     () => artworks.filter((item) => item.categoryIds?.includes(topTab)),
