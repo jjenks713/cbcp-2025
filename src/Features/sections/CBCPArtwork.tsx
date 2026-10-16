@@ -8,10 +8,10 @@ import Button from '@mui/material/Button';
 import Container from '@mui/material/Container';
 import Typography from '@mui/material/Typography';
 import Grid from '@mui/material/Grid';
+import ChevronRight from '@mui/icons-material/ChevronRight';
 import { alpha, useTheme } from '@mui/material/styles';
 
 import Image from '../../components/image';
-import Iconify from '../../components/iconify';
 import TextMaxLine from '../../components/text-max-line';
 import { RouterLink } from '../../components/RouterLink';
 import { varHover, varTranHover, MotionViewport, varFade, varZoom } from '../../components/animate';
@@ -80,7 +80,7 @@ export default function CBCPArtwork() {
           href="/gallery"
           size="large"
           sx={{ color: 'common.white' }}
-          endIcon={<Iconify icon="carbon:chevron-right" />}
+          endIcon={<ChevronRight />}
         >
           View All
         </Button>
