@@ -145,10 +145,14 @@ export default function Shop() {
               label="Sort by"
               value={sort}
               onChange={(e) => setSort(e.target.value as Sort)}
-              sx={{ width: 200 }}
+              sx={{ width: 200, borderRadius: 1 }}
             >
               {SORT_OPTIONS.map((option) => (
-                <MenuItem key={option.value} value={option.value}>
+                <MenuItem 
+                  sx={{ color: 'secondary.main' }}
+                  key={option.value} 
+                  value={option.value}
+                >
                   {option.label}
                 </MenuItem>
               ))}
