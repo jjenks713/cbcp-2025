@@ -1,7 +1,15 @@
 import { useQuery } from '@tanstack/react-query';
 
 import { queryKeys } from '../../lib/query-keys';
-import { getArtist, getArtworks, getCategories, getFaqs, getShopCategories } from '../../lib/contentful';
+import {
+  getArtist,
+  getArtworks,
+  getCategories,
+  getFaqs,
+  getShopCategories,
+  getShopCategoryList,
+  getShopItems,
+} from '../../lib/contentful';
 
 // Public site content from Contentful. Each hook is cached under its own
 // key, so e.g. the home page sections and the gallery share one artworks
@@ -22,6 +30,14 @@ export const useFaqs = () => useQuery({ queryKey: queryKeys.content.faqs(), quer
 
 export const useShopCategories = () =>
   useQuery({ queryKey: queryKeys.content.shopCategories(), queryFn: getShopCategories });
+
+// The shop page: every visible category (subcategories too) and product.
+export const useShopCategoryList = () =>
+  useQuery({ queryKey: queryKeys.content.shopCategoryList(), queryFn: getShopCategoryList });
+
+// `enabled: false` skips the fetch (e.g. the nav's cart while it's empty).
+export const useShopItems = ({ enabled = true } = {}) =>
+  useQuery({ queryKey: queryKeys.content.shopItems(), queryFn: getShopItems, enabled });
 
 /**
  * A query's list, or `fallback` while it loads, if it fails, or if
