@@ -1,8 +1,12 @@
 // One-time migration to the roles/userRoles collections:
 //   1. creates the "user" and "admin" roles,
-//   2. grants every existing user both roles,
+//   2. grants roles from each user's old users.role field - "admin" gets
+//      both roles, anything else just "user". Users without that field
+//      who already have roles (e.g. created by createUser.js since) are
+//      left alone; any with no roles at all get "user".
 //   3. with --drop-legacy-role, removes the old users.role field.
-// Safe to re-run: existing roles and grants are left alone.
+// Safe to re-run: it only ever adds missing grants, never admin to someone
+// whose old role wasn't admin.
 //
 // Step 3 is opt-in because an API still running the old code reads
 // users.role - e.g. cbcp-2025-api-dev shares cbcp2025 with local dev, so
@@ -36,9 +40,12 @@ async function main() {
   }
   console.log(`Roles: ${(await Role.find().sort('role')).map((r) => r.role).join(', ')}`);
 
-  const users = await User.find();
+  // Raw collection: "role" is no longer in the User schema, so Mongoose wouldn't read it.
+  const users = await User.collection.find({}, { projection: { email: 1, role: 1 } }).toArray();
   for (const user of users) {
-    await UserRole.grant(user._id, ROLES);
+    const current = await UserRole.rolesFor(user._id);
+    if (user.role === 'admin') await UserRole.grant(user._id, ['user', 'admin']);
+    else if (user.role || !current.length) await UserRole.grant(user._id, ['user']);
     console.log(`${user.email}: ${(await UserRole.rolesFor(user._id)).join(', ')}`);
   }
 
