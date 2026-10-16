@@ -13,9 +13,11 @@ import CollectionsIcon from '@mui/icons-material/Collections';
 
 import EntriesTable from './EntriesTable';
 import BulkAddDialog from './BulkAddDialog';
-import { BULK_ADD_CONFIGS } from './bulkAddConfigs';
+import { BULK_ADD_CONFIGS, type BulkAddConfig, type BulkRow } from './bulkAddConfigs';
 import EntryFormDialog from './EntryFormDialog';
 import ConfirmDeleteDialog from './ConfirmDeleteDialog';
+import StockDialog from './StockDialog';
+import StockCell, { useStockByItem } from './StockCell';
 import { entryPathLabel, type Asset, type Entry, type ContentType } from '../../lib/admin-contentful';
 import {
   useAssets,
@@ -23,6 +25,7 @@ import {
   useDeleteEntry,
   useEntriesByType,
   useSaveEntry,
+  useSaveInventory,
   useUploadAsset,
 } from '../../hooks/queries/admin';
 
@@ -69,6 +72,9 @@ export default function Admin() {
   const [editing, setEditing] = useState<{ contentType: ContentType; entry: Entry | null } | null>(null);
   const [deleting, setDeleting] = useState<EntryTarget | null>(null);
   const [bulkOpen, setBulkOpen] = useState(false);
+  // Shop item whose stock is open in the quick stock editor
+  const [stockEditing, setStockEditing] = useState<Entry | null>(null);
+  const stockByItem = useStockByItem();
 
   const activeType = contentTypes.find((ct) => ct.id === activeTypeId);
   // The active type's entries, plus those of every type it links to (to
@@ -97,11 +103,12 @@ export default function Admin() {
     [saveEntry]
   );
 
+  // The form closes itself once everything's saved (a shop item's stock
+  // goes to the inventory after the entry, using its itemId).
   const handleSave = async (fields: Entry['fields']) => {
-    if (!editing) return;
+    if (!editing) throw new Error('Nothing is being edited');
     const { contentType, entry } = editing;
-    await saveEntry({ contentTypeId: contentType.id, entryId: entry?.id, fields });
-    setEditing(null);
+    return saveEntry({ contentTypeId: contentType.id, entryId: entry?.id, fields });
   };
 
   const handleDelete = async () => {
@@ -111,9 +118,17 @@ export default function Admin() {
     setDeleting(null);
   };
 
+  // Creates the entry, then its stock rows if the type has any (shop items).
+  const { mutateAsync: saveInventory } = useSaveInventory();
   const handleBulkCreate = useCallback(
-    (contentTypeId: string, fields: Entry['fields']) => saveEntry({ contentTypeId, fields }),
-    [saveEntry]
+    async (config: BulkAddConfig, fields: Entry['fields'], row: BulkRow) => {
+      const created = await saveEntry({ contentTypeId: config.contentTypeId, fields });
+      if (config.inventoryFor) {
+        await saveInventory({ itemId: String(created.fields.itemId ?? ''), rows: config.inventoryFor(row) });
+      }
+      return created;
+    },
+    [saveEntry, saveInventory]
   );
 
   const pathLabel = (entry: Entry, contentType: ContentType | undefined) =>
@@ -199,6 +214,14 @@ export default function Admin() {
               onEdit={(entry) => setEditing({ contentType: activeType, entry })}
               onDelete={(entry) => setDeleting({ contentType: activeType, entry })}
               onToggleShow={(entry, show) => handleToggleShow(activeType, entry, show)}
+              extraColumn={
+                activeType.id === 'shopItem'
+                  ? {
+                      header: 'Stock',
+                      render: (entry) => <StockCell entry={entry} stock={stockByItem} onEdit={setStockEditing} />,
+                    }
+                  : undefined
+              }
             />
           </Stack>
         )}
@@ -218,6 +241,8 @@ export default function Admin() {
         />
       )}
 
+      {stockEditing && <StockDialog entry={stockEditing} onClose={() => setStockEditing(null)} />}
+
       {deleting && (
         <ConfirmDeleteDialog
           typeName={deleting.contentType.name}
@@ -235,7 +260,7 @@ export default function Admin() {
             .map((cat) => ({ id: cat.id, label: pathLabel(cat, bulkCategoryType) }))
             .sort((a, b) => a.label.localeCompare(b.label))}
           onUpload={handleUpload}
-          onCreate={(fields) => handleBulkCreate(bulkConfig.contentTypeId, fields)}
+          onCreate={(fields, row) => handleBulkCreate(bulkConfig, fields, row)}
           onClose={() => setBulkOpen(false)}
         />
       )}

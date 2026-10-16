@@ -20,7 +20,7 @@ import AddPhotoAlternateIcon from '@mui/icons-material/AddPhotoAlternate';
 
 import { useResponsive } from '../../hooks/use-responsive';
 import { type Asset, type Entry } from '../../lib/admin-contentful';
-import { type BulkAddConfig, type BulkField } from './bulkAddConfigs';
+import { type BulkAddConfig, type BulkField, type BulkRow } from './bulkAddConfigs';
 
 type Status = 'ready' | 'uploading' | 'creating' | 'done' | 'error';
 
@@ -41,7 +41,8 @@ type Props = {
   config: BulkAddConfig;
   categoryOptions: { id: string; label: string }[];
   onUpload: (file: File, title: string) => Promise<Asset>;
-  onCreate: (fields: Entry['fields']) => Promise<Entry>;
+  // Gets the row too, for anything saved alongside the entry (e.g. stock).
+  onCreate: (fields: Entry['fields'], row: BulkRow) => Promise<Entry>;
   onClose: () => void;
 };
 
@@ -180,7 +181,8 @@ export default function BulkAddDialog({ config, categoryOptions, onUpload, onCre
             updateRow(key, { assetId });
           }
           updateRow(key, { status: 'creating', error: undefined });
-          await onCreate(config.toFields({ name: name.trim(), values, categoryIds, assetId }));
+          const bulkRow = { name: name.trim(), values, categoryIds, assetId };
+          await onCreate(config.toFields(bulkRow), bulkRow);
           updateRow(key, { status: 'done' });
         } catch (err) {
           updateRow(key, { status: 'error', error: err instanceof Error ? err.message : 'Failed' });

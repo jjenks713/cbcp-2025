@@ -14,8 +14,11 @@ import Autocomplete from '@mui/material/Autocomplete';
 import DialogActions from '@mui/material/DialogActions';
 import DialogContent from '@mui/material/DialogContent';
 import FormControlLabel from '@mui/material/FormControlLabel';
+import CircularProgress from '@mui/material/CircularProgress';
 
 import AssetPicker from './AssetPicker';
+import InventoryEditor, { draftFromRows, rowsFromDraft, validateDraft, type StockDraft } from './InventoryEditor';
+import { useItemInventory, useSaveInventory } from '../../hooks/queries/admin';
 import { useResponsive } from '../../hooks/use-responsive';
 import { SHOP_ICONS } from '../sections/CBCPShop';
 import {
@@ -38,7 +41,9 @@ type Props = {
   entriesByType: Record<string, Entry[] | undefined>;
   assets: Asset[];
   onUpload: (file: File) => Promise<Asset>;
-  onSave: (fields: Entry['fields']) => Promise<void>;
+  // Resolves with the saved entry; the dialog closes itself once done
+  // (shop items also save their stock first).
+  onSave: (fields: Entry['fields']) => Promise<Entry>;
   onClose: () => void;
 };
 
@@ -145,11 +150,51 @@ export default function EntryFormDialog({
       .filter((option) => option.id !== entry?.id)
       .sort((a, b) => a.label.localeCompare(b.label));
 
+  // Shop items also get a stock table (saved to the API's inventory, not
+  // Contentful), following the sizes entered above.
+  const isShopItem = contentType.id === 'shopItem';
+  const existingItemId = entry ? String(entry.fields.itemId ?? '') : '';
+  const inventoryQuery = useItemInventory(existingItemId, { enabled: isShopItem });
+  const { mutateAsync: saveInventory } = useSaveInventory();
+  const [stockDraftState, setStockDraftState] = useState<StockDraft | null>(null);
+  const [stockError, setStockError] = useState<string | null>(null);
+  // Item saved but its stock didn't - the next Save only retries the stock
+  // (re-saving a new item would create it twice).
+  const [stockRetryItemId, setStockRetryItemId] = useState<string | null>(null);
+  const stockLoading = isShopItem && Boolean(existingItemId) && inventoryQuery.isPending;
+  const stockDraft = stockDraftState ?? (inventoryQuery.data ? draftFromRows(inventoryQuery.data) : {});
+  const sizes = Array.isArray(values.sizes) ? values.sizes.map(String) : [];
+  const basePrice = isEmpty(values.price) || Number.isNaN(Number(values.price)) ? null : Number(values.price);
+
+  const saveStock = async (itemId: string) => {
+    try {
+      await saveInventory({ itemId, rows: rowsFromDraft(stockDraft, sizes) });
+      return true;
+    } catch (err) {
+      setStockRetryItemId(itemId);
+      setSaveError(
+        `The item saved, but its stock didn't: ${err instanceof Error ? err.message : 'unknown error'}. Press Save to try the stock again.`
+      );
+      setSaving(false);
+      return false;
+    }
+  };
+
   const handleSubmit = async (event: FormEvent) => {
     event.preventDefault();
     const nextErrors = validate(editableFields, values);
     setErrors(nextErrors);
-    if (Object.keys(nextErrors).length) return;
+    const nextStockError = isShopItem ? validateDraft(stockDraft, sizes) : null;
+    setStockError(nextStockError);
+    if (Object.keys(nextErrors).length || nextStockError) return;
+
+    setSaving(true);
+    setSaveError('');
+
+    if (stockRetryItemId) {
+      if (await saveStock(stockRetryItemId)) onClose();
+      return;
+    }
 
     const fields = Object.fromEntries(
       editableFields.map((field) => {
@@ -158,14 +203,16 @@ export default function EntryFormDialog({
       })
     );
 
-    setSaving(true);
-    setSaveError('');
+    let saved: Entry;
     try {
-      await onSave(fields);
+      saved = await onSave(fields);
     } catch (err) {
       setSaveError(err instanceof Error ? err.message : 'Save failed');
       setSaving(false);
+      return;
     }
+    if (isShopItem && !(await saveStock(String(saved.fields.itemId ?? existingItemId)))) return;
+    onClose();
   };
 
   const renderField = (field: FieldDef) => {
@@ -230,6 +277,36 @@ export default function EntryFormDialog({
             </MenuItem>
           ))}
         </TextField>
+      );
+    }
+
+    // A list of text values (e.g. a shop item's sizes): type one and press
+    // Enter to add it as a chip.
+    if (field.type === 'Array' && field.items?.type === 'Symbol') {
+      return (
+        <Autocomplete
+          key={field.id}
+          multiple
+          freeSolo
+          disabled={saving}
+          options={[] as string[]}
+          value={Array.isArray(value) ? value : []}
+          onChange={(_, next) =>
+            setValue(
+              field.id,
+              Array.from(new Set(next.map((v) => String(v).trim()).filter(Boolean)))
+            )
+          }
+          renderInput={(params) => (
+            <TextField
+              {...params}
+              label={field.name}
+              required={field.required && !(Array.isArray(value) && value.length)}
+              error={Boolean(errors[field.id])}
+              helperText={errors[field.id] || 'Type a value and press Enter to add it'}
+            />
+          )}
+        />
       );
     }
 
@@ -326,6 +403,26 @@ export default function EntryFormDialog({
         <DialogContent dividers>
           <Stack spacing={2.5} sx={{ py: 1 }}>
             {contentType.fields.map(renderField)}
+            {isShopItem &&
+              (stockLoading ? (
+                <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, color: 'text.secondary' }}>
+                  <CircularProgress size={16} /> Loading stock…
+                </Box>
+              ) : (
+                <Box sx={{ pt: 1, borderTop: 1, borderColor: 'divider' }}>
+                  <InventoryEditor
+                    sizes={sizes}
+                    basePrice={basePrice}
+                    value={stockDraft}
+                    onChange={(next) => {
+                      setStockDraftState(next);
+                      setStockError(null);
+                    }}
+                    disabled={saving}
+                    error={stockError}
+                  />
+                </Box>
+              ))}
             {saveError && <Alert severity="error">{saveError}</Alert>}
           </Stack>
         </DialogContent>
