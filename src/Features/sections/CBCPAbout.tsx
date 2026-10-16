@@ -6,9 +6,9 @@ import Button from '@mui/material/Button';
 import Divider from '@mui/material/Divider';
 import Container from '@mui/material/Container';
 import Typography from '@mui/material/Typography';
+import ChevronRight from '@mui/icons-material/ChevronRight';
 
 import Image from '../../components/image';
-import Iconify from '../../components/iconify';
 import { fShortenNumber } from '../../utils/format-number';
 import { RouterLink } from '../../components/RouterLink';
 import { MotionViewport, varFade, varZoom, varTranEnter } from '../../components/animate';
@@ -104,7 +104,7 @@ export default function CBCPAbout() {
               href="/#meet-the-artist"
               size="large"
               color="inherit"
-              endIcon={<Iconify icon="carbon:chevron-right" />}
+              endIcon={<ChevronRight />}
               sx={{ my: 5 }}
             >
               Learn More

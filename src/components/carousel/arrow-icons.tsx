@@ -1,15 +1,12 @@
-import Iconify, { IconifyProps } from '../iconify';
+import ChevronLeft from '@mui/icons-material/ChevronLeft';
+import ChevronRight from '@mui/icons-material/ChevronRight';
 
-type Props = { icon?: IconifyProps; isRTL?: boolean };
+type Props = { isRTL?: boolean };
 
-export function LeftIcon({ icon = 'eva:arrow-ios-forward-fill', isRTL }: Props) {
-  return (
-    <Iconify icon={icon} sx={{ transform: 'scaleX(-1)', ...(isRTL && { transform: 'scaleX(1)' }) }} />
-  );
+export function LeftIcon({ isRTL }: Props) {
+  return isRTL ? <ChevronRight /> : <ChevronLeft />;
 }
 
-export function RightIcon({ icon = 'eva:arrow-ios-forward-fill', isRTL }: Props) {
-  return (
-    <Iconify icon={icon} sx={{ ...(isRTL && { transform: 'scaleX(-1)' }) }} />
-  );
+export function RightIcon({ isRTL }: Props) {
+  return isRTL ? <ChevronLeft /> : <ChevronRight />;
 }

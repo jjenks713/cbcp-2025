@@ -5,8 +5,11 @@ import Stack from '@mui/material/Stack';
 import Container from '@mui/material/Container';
 import Typography from '@mui/material/Typography';
 import { alpha } from '@mui/material/styles';
+import PrintIcon from '@mui/icons-material/Print';
+import LabelIcon from '@mui/icons-material/Label';
+import BrushIcon from '@mui/icons-material/Brush';
+import EditIcon from '@mui/icons-material/Edit';
 
-import Iconify from '../../components/iconify';
 import { MotionViewport, varFade, varZoom } from '../../components/animate';
 
 const COLORS = ['primary', 'secondary', 'warning', 'success'] as const;
@@ -14,25 +17,25 @@ const COLORS = ['primary', 'secondary', 'warning', 'success'] as const;
 const STYLES = [
   {
     name: 'Screen Printing',
-    icon: 'ph:monitor-bold',
+    icon: PrintIcon,
     description:
       "Hand-pulled, layer by layer — each color inked and pressed by hand for rich, tactile texture no digital print can match.",
   },
   {
     name: 'Sticker Making',
-    icon: 'ph:sticker-bold',
+    icon: LabelIcon,
     description:
       'Hand-drawn first, then brought digital and die-cut and laminated for a durable, waterproof finish that’s ready to stick anywhere.',
   },
   {
     name: 'Painting',
-    icon: 'ph:paint-brush-bold',
+    icon: BrushIcon,
     description:
       'Acrylic and mixed media built up in layers, blending soft color with sharp detail to bring each character to life.',
   },
   {
     name: 'Drawing',
-    icon: 'ph:pencil-bold',
+    icon: EditIcon,
     description:
       'Graphite, ink, and charcoal — the foundation of every piece, where the strange and the beautiful first take shape.',
   },
@@ -141,7 +144,7 @@ function FlipCard({
       >
         {/* Front */}
         <Box sx={(theme) => ({ ...faceSx(theme), justifyContent: 'space-between' })}>
-          <Iconify icon={style.icon} width={64} sx={{ opacity: 0.48 }} />
+          <style.icon sx={{ fontSize: 64, opacity: 0.48 }} />
           <Typography variant="h5" sx={{ textAlign: 'right' }}>
             {style.name}
           </Typography>

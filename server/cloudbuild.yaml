@@ -1,0 +1,56 @@
+# Builds the API image from server/ and deploys it to Cloud Run.
+#
+# Used by the API's Cloud Build trigger (runs on pushes that touch server/),
+# and can be run by hand from the repo root:
+#   gcloud builds submit --region=us-central1 --config=server/cloudbuild.yaml .
+#
+# Defaults deploy dev. Prod (the cbcp-2025-api trigger on master) overrides:
+#   _SERVICE_NAME=cbcp-2025-api, _JWT_SECRET=cbcp-api-prod-jwt-secret,
+#   _MONGODB_DB_NAME=cbcp2025-prod, _CONTENTFUL_ENVIRONMENT=master
+#
+# Runtime config comes from Secret Manager, never from the image:
+#   cbcp-api-mongodb-uri and cbcp-api-contentful-cma-token (shared - one
+#   Atlas cluster, one Contentful space) plus a JWT secret per environment.
+# The runtime service account needs roles/secretmanager.secretAccessor on each.
+substitutions:
+  _SERVICE_NAME: cbcp-2025-api-dev
+  _JWT_SECRET: cbcp-api-jwt-secret
+  # Empty = the database named in the URI (what dev and local use).
+  _MONGODB_DB_NAME: ''
+  _DEPLOY_REGION: us-central1
+  _AR_IMAGE: us-central1-docker.pkg.dev/cbcp-2025/cloud-run-source-deploy/cbcp-2025-api
+  _CONTENTFUL_SPACE_ID: lrvbgospprcp
+  # Contentful "dev" is a clone of "master" for testing content/model changes.
+  _CONTENTFUL_ENVIRONMENT: dev
+
+steps:
+  - id: Build
+    name: gcr.io/cloud-builders/docker
+    args: ['build', '-t', '${_AR_IMAGE}:${BUILD_ID}', '-f', 'server/Dockerfile', 'server']
+
+  - id: Push
+    name: gcr.io/cloud-builders/docker
+    args: ['push', '${_AR_IMAGE}:${BUILD_ID}']
+
+  - id: Deploy
+    name: gcr.io/google.com/cloudsdktool/cloud-sdk:slim
+    entrypoint: gcloud
+    args:
+      - run
+      - deploy
+      - ${_SERVICE_NAME}
+      - --image=${_AR_IMAGE}:${BUILD_ID}
+      - --region=${_DEPLOY_REGION}
+      - --platform=managed
+      # Public endpoint - the app does its own auth (JWT) on every protected route.
+      - --allow-unauthenticated
+      - --min-instances=0
+      - --set-env-vars=CONTENTFUL_SPACE_ID=${_CONTENTFUL_SPACE_ID},CONTENTFUL_ENVIRONMENT=${_CONTENTFUL_ENVIRONMENT},MONGODB_DB_NAME=${_MONGODB_DB_NAME}
+      - --set-secrets=MONGODB_URI=cbcp-api-mongodb-uri:latest,JWT_SECRET=${_JWT_SECRET}:latest,CONTENTFUL_CMA_TOKEN=cbcp-api-contentful-cma-token:latest
+      - --quiet
+
+images:
+  - ${_AR_IMAGE}:${BUILD_ID}
+
+options:
+  logging: CLOUD_LOGGING_ONLY

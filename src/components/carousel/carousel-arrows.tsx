@@ -1,7 +1,6 @@
 import Stack, { StackProps } from '@mui/material/Stack';
 import { alpha, styled, useTheme } from '@mui/material/styles';
 import IconButton, { IconButtonProps } from '@mui/material/IconButton';
-import { IconifyProps } from '../iconify';
 import { LeftIcon, RightIcon } from './arrow-icons';
 
 interface StyledIconButtonProps extends IconButtonProps {
@@ -29,7 +28,6 @@ interface Props extends StackProps {
   shape?: 'circular' | 'rounded';
   filled?: boolean;
   children?: React.ReactNode;
-  icon?: IconifyProps;
   onNext?: VoidFunction;
   onPrev?: VoidFunction;
   leftButtonProps?: IconButtonProps;
@@ -37,7 +35,7 @@ interface Props extends StackProps {
 }
 
 export default function CarouselArrows({
-  shape = 'circular', filled = false, icon, onNext, onPrev,
+  shape = 'circular', filled = false, onNext, onPrev,
   children, leftButtonProps, rightButtonProps, sx, ...other
 }: Props) {
   const theme = useTheme();
@@ -55,14 +53,14 @@ export default function CarouselArrows({
         {onNext && (
           <StyledIconButton filled={filled} shape={shape} hasChild onClick={onPrev}
             {...leftButtonProps} sx={{ left: 16, ...leftButtonProps?.sx }}>
-            <LeftIcon icon={icon} isRTL={isRTL} />
+            <LeftIcon isRTL={isRTL} />
           </StyledIconButton>
         )}
         {children}
         {onPrev && (
           <StyledIconButton filled={filled} shape={shape} hasChild onClick={onNext}
             {...rightButtonProps} sx={{ right: 16, ...rightButtonProps?.sx }}>
-            <RightIcon icon={icon} isRTL={isRTL} />
+            <RightIcon isRTL={isRTL} />
           </StyledIconButton>
         )}
       </Stack>
@@ -72,10 +70,10 @@ export default function CarouselArrows({
   return (
     <Stack direction="row" alignItems="center" display="inline-flex" sx={sx} {...other}>
       <StyledIconButton filled={filled} shape={shape} onClick={onPrev} {...leftButtonProps}>
-        <LeftIcon icon={icon} isRTL={isRTL} />
+        <LeftIcon isRTL={isRTL} />
       </StyledIconButton>
       <StyledIconButton filled={filled} shape={shape} onClick={onNext} {...rightButtonProps}>
-        <RightIcon icon={icon} isRTL={isRTL} />
+        <RightIcon isRTL={isRTL} />
       </StyledIconButton>
     </Stack>
   );
