@@ -9,6 +9,7 @@ import { BrowserRouter } from 'react-router-dom';
 import { ThemeProvider } from '@mui/material';
 import CssBaseline from '@mui/material/CssBaseline';
 import useTheme from '../Theme';
+import LaunchDarklyProvider from '../lib/launchdarkly-provider';
 import Routes from './Routes';
 
 function App() {
@@ -24,7 +25,9 @@ function App() {
           box-sizing, default font-family on raw text, etc.) to the theme.
         */}
         <CssBaseline />
-        <Routes />
+        <LaunchDarklyProvider>
+          <Routes />
+        </LaunchDarklyProvider>
       </ThemeProvider>
     </BrowserRouter>
   );
