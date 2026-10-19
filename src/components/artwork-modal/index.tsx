@@ -4,6 +4,7 @@ import { AnimatePresence, motion } from 'framer-motion';
 import Box from '@mui/material/Box';
 import Chip from '@mui/material/Chip';
 import Stack from '@mui/material/Stack';
+import Portal from '@mui/material/Portal';
 import Divider from '@mui/material/Divider';
 import IconButton from '@mui/material/IconButton';
 import Typography from '@mui/material/Typography';
@@ -57,6 +58,10 @@ export default function ArtworkModal({ item, open, onClose }: Props) {
     : [];
 
   return (
+    // Portaled to <body> because Layout wraps page content in its own
+    // stacking context (zIndex 1), which would otherwise trap the modal
+    // beneath the sticky nav no matter how high its zIndex.
+    <Portal>
     <AnimatePresence>
       {show && displayedItem && (
         <>
@@ -173,5 +178,6 @@ export default function ArtworkModal({ item, open, onClose }: Props) {
         </>
       )}
     </AnimatePresence>
+    </Portal>
   );
 }
