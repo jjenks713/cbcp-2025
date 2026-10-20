@@ -1,6 +1,7 @@
 import {
   createClient,
   type Asset,
+  type Entry,
   type EntryFieldTypes,
   type EntrySkeletonType,
   type UnresolvedLink,
@@ -322,6 +323,37 @@ export async function getCategoryTree(): Promise<CategoryNode[]> {
     });
 }
 
+/** A page of results plus how many match in all - what a paginated grid needs. */
+export type Page<T> = { items: T[]; total: number };
+
+const NO_PAGE = { items: [], total: 0 };
+
+// Shared by the full list, a page of the gallery and a single piece.
+function toArtItem(item: Entry<ArtworkSkeleton, undefined>): ArtItem {
+  const categoryEntries = (item.fields.categories ?? []).filter(isShownLinkedCategory);
+  const categories = categoryEntries
+    .map((cat) => ('fields' in cat ? cat.fields?.name : undefined))
+    .filter((name): name is string => Boolean(name));
+  const categoryIds = categoryEntries.map((cat) => cat.sys.id);
+  const imageUrls = (item.fields.images ?? [])
+    .map((img) => assetUrl(img))
+    .filter((url): url is string => Boolean(url));
+
+  return {
+    id: item.sys.id,
+    title: item.fields.title,
+    category: categories[0] ?? '',
+    categories,
+    categoryIds,
+    description: item.fields.description ?? '',
+    medium: item.fields.medium,
+    size: item.fields.size,
+    edition: item.fields.edition,
+    coverUrl: assetUrl(item.fields.coverImage) ?? '',
+    imageUrls,
+  };
+}
+
 export async function getArtworks(opts?: { featuredOnly?: boolean }): Promise<ArtItem[]> {
   if (!contentfulClient) return [];
   try {
@@ -333,34 +365,53 @@ export async function getArtworks(opts?: { featuredOnly?: boolean }): Promise<Ar
       order: ['-sys.createdAt'],
       ...(opts?.featuredOnly ? { 'fields.featured': true } : {}),
     });
-    return res.items.map((item) => {
-      const categoryEntries = (item.fields.categories ?? []).filter(isShownLinkedCategory);
-      const categories = categoryEntries
-        .map((cat) => ('fields' in cat ? cat.fields?.name : undefined))
-        .filter((name): name is string => Boolean(name));
-      const categoryIds = categoryEntries.map((cat) => cat.sys.id);
-      const imageUrls = (item.fields.images ?? [])
-        .map((img) => assetUrl(img))
-        .filter((url): url is string => Boolean(url));
-
-      return {
-        id: item.sys.id,
-        title: item.fields.title,
-        category: categories[0] ?? '',
-        categories,
-        categoryIds,
-        description: item.fields.description ?? '',
-        medium: item.fields.medium,
-        size: item.fields.size,
-        edition: item.fields.edition,
-        coverUrl: assetUrl(item.fields.coverImage) ?? '',
-        imageUrls,
-      };
-    });
+    return res.items.map(toArtItem);
   } catch (err) {
     // eslint-disable-next-line no-console
     console.error('[contentful] getArtworks failed:', err);
     return [];
+  }
+}
+
+export type ArtworksPageParams = { categoryId: string; page: number; pageSize: number };
+
+/** One page (1-based) of a gallery tab: the category's visible pieces, newest first. */
+export async function getArtworksPage({ categoryId, page, pageSize }: ArtworksPageParams): Promise<Page<ArtItem>> {
+  if (!contentfulClient) return NO_PAGE;
+  try {
+    const res = await contentfulClient.getEntries<ArtworkSkeleton>({
+      content_type: 'artwork',
+      'fields.showInApp': true,
+      'fields.categories.sys.id[in]': [categoryId],
+      include: 2,
+      order: ['-sys.createdAt'],
+      skip: (page - 1) * pageSize,
+      limit: pageSize,
+    });
+    return { items: res.items.map(toArtItem), total: res.total };
+  } catch (err) {
+    // eslint-disable-next-line no-console
+    console.error('[contentful] getArtworksPage failed:', err);
+    return NO_PAGE;
+  }
+}
+
+/** One visible piece by id, or null - for a link straight to a piece that may be on another page. */
+export async function getArtwork(id: string): Promise<ArtItem | null> {
+  if (!contentfulClient) return null;
+  try {
+    const res = await contentfulClient.getEntries<ArtworkSkeleton>({
+      content_type: 'artwork',
+      'fields.showInApp': true,
+      'sys.id': id,
+      include: 2,
+      limit: 1,
+    });
+    return res.items[0] ? toArtItem(res.items[0]) : null;
+  } catch (err) {
+    // eslint-disable-next-line no-console
+    console.error('[contentful] getArtwork failed:', err);
+    return null;
   }
 }
 
@@ -437,6 +488,27 @@ export async function getShopCategoryList(): Promise<ShopCategoryOption[]> {
   }
 }
 
+function toShopProduct(item: Entry<ShopItemSkeleton, undefined>): ShopProduct {
+  const category = item.fields.category;
+  const imageUrls = (item.fields.images ?? [])
+    .map((img) => assetUrl(img))
+    .filter((url): url is string => Boolean(url));
+  return {
+    id: item.sys.id,
+    itemId: item.fields.itemId,
+    name: item.fields.name,
+    price: item.fields.price ?? 0,
+    sizes: (item.fields.sizes ?? []).filter(Boolean),
+    categoryId: category.sys.id,
+    categoryName: 'fields' in category ? category.fields?.name ?? '' : '',
+    categorySlug: 'fields' in category ? category.fields?.slug ?? '' : '',
+    description: item.fields.content ?? '',
+    coverUrl: imageUrls[0] ?? '',
+    imageUrls,
+    createdAt: item.sys.createdAt,
+  };
+}
+
 /** Visible shop items whose category (and its parents) are visible too, newest first. */
 export async function getShopItems(): Promise<ShopProduct[]> {
   if (!contentfulClient) return [];
@@ -448,32 +520,60 @@ export async function getShopItems(): Promise<ShopProduct[]> {
       order: ['-sys.createdAt'],
       limit: 1000,
     });
-    return res.items
-      .filter((item) => isShownLinkedCategory(item.fields.category))
-      .map((item) => {
-        const category = item.fields.category;
-        const imageUrls = (item.fields.images ?? [])
-          .map((img) => assetUrl(img))
-          .filter((url): url is string => Boolean(url));
-        return {
-          id: item.sys.id,
-          itemId: item.fields.itemId,
-          name: item.fields.name,
-          price: item.fields.price ?? 0,
-          sizes: (item.fields.sizes ?? []).filter(Boolean),
-          categoryId: category.sys.id,
-          categoryName: 'fields' in category ? category.fields?.name ?? '' : '',
-          categorySlug: 'fields' in category ? category.fields?.slug ?? '' : '',
-          description: item.fields.content ?? '',
-          coverUrl: imageUrls[0] ?? '',
-          imageUrls,
-          createdAt: item.sys.createdAt,
-        };
-      });
+    return res.items.filter((item) => isShownLinkedCategory(item.fields.category)).map(toShopProduct);
   } catch (err) {
     // eslint-disable-next-line no-console
     console.error('[contentful] getShopItems failed:', err);
     return [];
+  }
+}
+
+export type ShopSort = 'newest' | 'price-asc' | 'price-desc' | 'name';
+
+// Price sorts use the item's base price from Contentful - a size priced
+// differently in the inventory doesn't move the item.
+const SHOP_ORDER = {
+  newest: '-sys.createdAt',
+  'price-asc': 'fields.price',
+  'price-desc': '-fields.price',
+  name: 'fields.name',
+} as const satisfies Record<ShopSort, string>;
+
+export type ShopItemsPageParams = {
+  // Only items in these categories - the selected one and everything under
+  // it, or every visible category, which also leaves out items whose
+  // category is hidden (as getShopItems does).
+  categoryIds: string[];
+  sort: ShopSort;
+  page: number;
+  pageSize: number;
+};
+
+/** One page (1-based) of the shop grid. */
+export async function getShopItemsPage({
+  categoryIds,
+  sort,
+  page,
+  pageSize,
+}: ShopItemsPageParams): Promise<Page<ShopProduct>> {
+  if (!contentfulClient || !categoryIds.length) return NO_PAGE;
+  try {
+    const res = await contentfulClient.getEntries<ShopItemSkeleton>({
+      content_type: 'shopItem',
+      'fields.showInApp': true,
+      'fields.category.sys.id[in]': categoryIds,
+      include: 2,
+      // sys.id as a tiebreaker, so items with the same price/name don't
+      // shuffle between pages.
+      order: [SHOP_ORDER[sort], 'sys.id'],
+      skip: (page - 1) * pageSize,
+      limit: pageSize,
+    });
+    return { items: res.items.map(toShopProduct), total: res.total };
+  } catch (err) {
+    // eslint-disable-next-line no-console
+    console.error('[contentful] getShopItemsPage failed:', err);
+    return NO_PAGE;
   }
 }
 

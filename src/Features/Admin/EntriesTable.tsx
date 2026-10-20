@@ -1,9 +1,10 @@
-import { useMemo, useState, type ReactNode } from 'react';
+import { useEffect, useMemo, useState, type ReactNode } from 'react';
 
 import Box from '@mui/material/Box';
 import Paper from '@mui/material/Paper';
 import Stack from '@mui/material/Stack';
 import Alert from '@mui/material/Alert';
+import Button from '@mui/material/Button';
 import Table from '@mui/material/Table';
 import Switch from '@mui/material/Switch';
 import Tooltip from '@mui/material/Tooltip';
@@ -33,13 +34,13 @@ import {
   type FieldDef,
   type FieldValue,
   type ContentType,
+  type EntriesPageParams,
 } from '../../lib/admin-contentful';
 import { formatPrice } from '../../lib/format';
+import { useEntriesPage } from '../../hooks/queries/admin';
 
 type Props = {
   contentType: ContentType;
-  // undefined while this type's entries are still loading
-  entries: Entry[] | undefined;
   contentTypes: ContentType[];
   entriesByType: Record<string, Entry[] | undefined>;
   assets: Asset[];
@@ -56,6 +57,13 @@ type Visibility = 'all' | 'shown' | 'hidden';
 const SHOW_FIELD = 'showInApp';
 
 const ROWS_PER_PAGE_OPTIONS = [10, 25, 50, 100];
+
+// The table's first, unfiltered page - Admin asks for the same page to show
+// the type's total, so both share one request.
+export const FIRST_PAGE: EntriesPageParams = { page: 0, rowsPerPage: 10, search: '', linkIds: [], show: 'all' };
+
+// Wait for a pause in typing before searching, rather than a request per keystroke.
+const SEARCH_DELAY_MS = 300;
 
 const isAssetField = (field: FieldDef) => field.linkType === 'Asset' || field.items?.linkType === 'Asset';
 const isEntryLinkField = (field: FieldDef) => field.linkType === 'Entry' || field.items?.linkType === 'Entry';
@@ -80,11 +88,10 @@ function withDescendants(rootId: string, options: { id: string; parentId?: strin
 // Entries list for one content type: search by name, filter by the type's
 // first entry-link field (artwork -> categories, shop item -> category,
 // categories -> parent) and by Show in App, an inline Show in App switch,
-// and pagination. Remounted per type (keyed by the parent), so
-// search/filters/page start fresh on every tab.
+// and pagination - all done by the API, a page at a time. Remounted per
+// type (keyed by the parent), so search/filters/page start fresh on every tab.
 export default function EntriesTable({
   contentType,
-  entries,
   contentTypes,
   entriesByType,
   assets,
@@ -99,8 +106,14 @@ export default function EntriesTable({
   // Switch positions shown while their save is in flight (rolled back on failure).
   const [pendingShow, setPendingShow] = useState<Record<string, boolean>>({});
   const [toggleError, setToggleError] = useState('');
-  const [page, setPage] = useState(0);
-  const [rowsPerPage, setRowsPerPage] = useState(10);
+  const [page, setPage] = useState(FIRST_PAGE.page);
+  const [rowsPerPage, setRowsPerPage] = useState(FIRST_PAGE.rowsPerPage);
+  const [debouncedSearch, setDebouncedSearch] = useState(search);
+
+  useEffect(() => {
+    const timer = setTimeout(() => setDebouncedSearch(search), SEARCH_DELAY_MS);
+    return () => clearTimeout(timer);
+  }, [search]);
 
   const typeById = useMemo(() => new Map(contentTypes.map((ct) => [ct.id, ct])), [contentTypes]);
 
@@ -148,14 +161,25 @@ export default function EntriesTable({
 
   const isShown = (entry: Entry) => pendingShow[entry.id] ?? entry.fields[SHOW_FIELD] === true;
 
-  const query = search.trim().toLowerCase();
-  // Newest first by date added - not by last update, or flipping a switch
-  // would jump that row to the top.
-  const visible = (entries ?? [])
-    .filter((entry) => !query || pathLabel(entry, contentType).toLowerCase().includes(query))
-    .filter((entry) => !filterSet || !filterField || linkIds(entry.fields[filterField.id]).some((id) => filterSet.has(id)))
-    .filter((entry) => visibility === 'all' || isShown(entry) === (visibility === 'shown'))
-    .sort((a, b) => b.createdAt.localeCompare(a.createdAt));
+  // The API sorts newest first by date added - not by last update, or
+  // flipping a switch would jump that row to the top.
+  const pageQuery = useEntriesPage(contentType.id, {
+    page,
+    rowsPerPage,
+    search: debouncedSearch.trim(),
+    linkField: filterSet && filterField ? filterField.id : undefined,
+    linkIds: filterSet ? Array.from(filterSet).sort() : [],
+    show: visibility,
+  });
+  const pageRows = pageQuery.data?.entries ?? [];
+  const total = pageQuery.data?.total ?? 0;
+  const filtering = Boolean(debouncedSearch.trim() || filterSet || visibility !== 'all');
+
+  // Deleting the last row of the last page would otherwise leave an empty page.
+  const lastPage = Math.max(0, Math.ceil(total / rowsPerPage) - 1);
+  useEffect(() => {
+    if (pageQuery.data && !pageQuery.isPlaceholderData && page > lastPage) setPage(lastPage);
+  }, [pageQuery.data, pageQuery.isPlaceholderData, page, lastPage]);
 
   const toggleShow = async (entry: Entry, show: boolean) => {
     setToggleError('');
@@ -168,11 +192,6 @@ export default function EntriesTable({
       setPendingShow(({ [entry.id]: _done, ...rest }) => rest);
     }
   };
-
-  // Deleting the last row of the last page would otherwise leave an empty page.
-  const lastPage = Math.max(0, Math.ceil(visible.length / rowsPerPage) - 1);
-  const currentPage = Math.min(page, lastPage);
-  const pageRows = visible.slice(currentPage * rowsPerPage, currentPage * rowsPerPage + rowsPerPage);
 
   const formatValue = (field: FieldDef, value: FieldValue) => {
     if (field.type === 'Boolean') return value ? 'Yes' : '—';
@@ -197,7 +216,22 @@ export default function EntriesTable({
     return id ? assetIndex.get(id) : undefined;
   };
 
-  if (!entries) {
+  if (pageQuery.error && !pageQuery.data) {
+    return (
+      <Alert
+        severity="error"
+        action={
+          <Button color="inherit" size="small" onClick={() => pageQuery.refetch()}>
+            Retry
+          </Button>
+        }
+      >
+        {pageQuery.error.message || `Couldn't load ${contentType.name} entries`}
+      </Alert>
+    );
+  }
+
+  if (!pageQuery.data) {
     return (
       <Box sx={{ display: 'flex', justifyContent: 'center', py: 6 }}>
         <CircularProgress color="primary" />
@@ -205,7 +239,7 @@ export default function EntriesTable({
     );
   }
 
-  if (!entries.length) {
+  if (!total && !filtering) {
     return (
       <Typography sx={{ color: 'text.secondary', py: 4, textAlign: 'center' }}>
         No {contentType.name} entries yet.
@@ -402,8 +436,8 @@ export default function EntriesTable({
         </Table>
         <TablePagination
           component="div"
-          count={visible.length}
-          page={currentPage}
+          count={total}
+          page={Math.min(page, lastPage)}
           onPageChange={(_, next) => setPage(next)}
           rowsPerPage={rowsPerPage}
           rowsPerPageOptions={ROWS_PER_PAGE_OPTIONS}

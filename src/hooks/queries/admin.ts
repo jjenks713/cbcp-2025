@@ -1,5 +1,6 @@
 import { useCallback, useMemo } from 'react';
 import {
+  keepPreviousData,
   useMutation,
   useQueries,
   useQuery,
@@ -10,7 +11,7 @@ import {
 
 import { useAuth } from '../../lib/auth-context';
 import { queryKeys } from '../../lib/query-keys';
-import { createAdminApi, type Asset, type Entry } from '../../lib/admin-contentful';
+import { createAdminApi, type Asset, type Entry, type EntriesPageParams } from '../../lib/admin-contentful';
 import { createInventoryAdminApi, type InventoryInput, type InventoryRow } from '../../lib/shop-api';
 
 // Admin panel data (the API's Contentful Management routes). Mutations
@@ -63,11 +64,32 @@ export function useEntriesByType(contentTypeIds: string[]) {
   });
 }
 
-/** Replaces an entry in its type's cached list, or adds it at the top if new. */
+/**
+ * One page of the entries table, searched and filtered by the API. Keeps
+ * showing the previous page while the next one loads, so the table doesn't
+ * flash empty on every page/filter change.
+ */
+export function useEntriesPage(contentTypeId: string, params: EntriesPageParams) {
+  const api = useAdminApi();
+  return useQuery({
+    queryKey: queryKeys.admin.entriesPage(contentTypeId, params),
+    queryFn: () => api.getEntriesPage(contentTypeId, params),
+    // No type yet while the content types are still loading.
+    enabled: Boolean(contentTypeId),
+    placeholderData: keepPreviousData,
+  });
+}
+
+/**
+ * Replaces an entry in its type's cached list, or adds it at the top if
+ * new. The table's pages can't be patched the same way (a new entry or a
+ * flipped switch can move rows between pages and filters), so they refetch.
+ */
 function storeEntry(queryClient: QueryClient, contentTypeId: string, saved: Entry) {
-  queryClient.setQueryData<Entry[]>(queryKeys.admin.entries(contentTypeId), (list: Entry[] = []) =>
-    list.some((e) => e.id === saved.id) ? list.map((e) => (e.id === saved.id ? saved : e)) : [saved, ...list]
+  queryClient.setQueryData<Entry[]>(queryKeys.admin.entries(contentTypeId), (list: Entry[] | undefined) =>
+    list && (list.some((e) => e.id === saved.id) ? list.map((e) => (e.id === saved.id ? saved : e)) : [saved, ...list])
   );
+  queryClient.invalidateQueries({ queryKey: queryKeys.admin.entryPages(contentTypeId) });
 }
 
 const markSiteContentStale = (queryClient: QueryClient) =>
@@ -101,9 +123,10 @@ export function useDeleteEntry() {
     mutationFn: ({ contentTypeId, entryId }: { contentTypeId: string; entryId: string }) =>
       api.deleteEntry(contentTypeId, entryId),
     onSuccess: (_, { contentTypeId, entryId }) => {
-      queryClient.setQueryData<Entry[]>(queryKeys.admin.entries(contentTypeId), (list: Entry[] = []) =>
-        list.filter((e) => e.id !== entryId)
+      queryClient.setQueryData<Entry[]>(queryKeys.admin.entries(contentTypeId), (list: Entry[] | undefined) =>
+        list?.filter((e) => e.id !== entryId)
       );
+      queryClient.invalidateQueries({ queryKey: queryKeys.admin.entryPages(contentTypeId) });
       markSiteContentStale(queryClient);
     },
   });
