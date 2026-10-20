@@ -12,12 +12,14 @@ const shopRoutes = require('./routes/shop');
 const adminContentfulRoutes = require('./routes/admin-contentful');
 const adminInventoryRoutes = require('./routes/admin-inventory');
 
-// Sites whose pages may call the API from the browser - local dev plus the
-// prod and dev frontends (each Cloud Run service answers on two URLs).
-// CORS_ORIGINS (comma-separated) replaces the list, e.g. for a custom domain.
+// Sites whose pages may call the API from the browser - local dev, the prod
+// custom domain, plus the prod and dev frontends (each Cloud Run service
+// answers on two URLs). CORS_ORIGINS (comma-separated) replaces the list.
 // Requests with no Origin (curl, health checks) aren't affected.
 const DEFAULT_CORS_ORIGINS = [
   'http://localhost:3000',
+  'https://creepybutcutepress.com',
+  'https://www.creepybutcutepress.com',
   'https://cbcp-2025-4wcjicbaua-uc.a.run.app',
   'https://cbcp-2025-561828277789.us-central1.run.app',
   'https://cbcp-2025-dev-4wcjicbaua-uc.a.run.app',
