@@ -13,10 +13,7 @@ import TextMaxLine from '../../components/text-max-line';
 import { formatPrice } from '../../lib/format';
 import { useCart } from '../../lib/cart-context';
 import { type ShopItem } from '../../hooks/queries/shop';
-
-// Contentful Images API: a square crop sized for the grid, instead of the
-// full-size upload.
-const cardImageUrl = (url: string) => `${url}?w=600&h=600&fit=fill`;
+import { contentfulImage } from '../../lib/contentful';
 
 // One product in the shop grid - adapted from the Zone template's
 // ecommerce-product-view-grid-item (category, name, price under a square
@@ -85,7 +82,7 @@ export default function ShopItemCard({ item }: { item: ShopItem }) {
         {item.coverUrl ? (
           <Image
             alt={item.name}
-            src={cardImageUrl(item.coverUrl)}
+            src={contentfulImage(item.coverUrl, 600, { square: true })}
             ratio="1/1"
             sx={{ borderRadius: 1.5, bgcolor: 'grey.800', ...(soldOut && { opacity: 0.55 }) }}
           />

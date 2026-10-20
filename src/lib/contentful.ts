@@ -48,6 +48,26 @@ export function assetUrl(
   return url.startsWith('//') ? `https:${url}` : url;
 }
 
+/**
+ * A Contentful image resized to `width` and re-encoded as WebP via the
+ * Images API - the originals are full-size camera photos (often 5-10MB),
+ * far more than any spot on the site needs. Pass `square` to crop to a
+ * width x width square. Non-Contentful URLs (local placeholders under
+ * /assets) are returned unchanged, since only Contentful understands the
+ * params.
+ */
+export function contentfulImage(url: string, width: number, opts?: { square?: boolean }): string;
+export function contentfulImage(url: string | undefined, width: number, opts?: { square?: boolean }): string | undefined;
+export function contentfulImage(url: string | undefined, width: number, { square = false } = {}) {
+  if (!url || !url.includes('ctfassets.net')) return url;
+  const params = new URLSearchParams({ w: String(width), fm: 'webp', q: '75' });
+  if (square) {
+    params.set('h', String(width));
+    params.set('fit', 'fill');
+  }
+  return `${url}?${params}`;
+}
+
 // -----------------------------------------------------------------------
 // Normalized shapes consumed by the UI (kept close to the original
 // hardcoded data shapes already used in src/Features/sections/*)
