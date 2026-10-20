@@ -11,7 +11,7 @@ import CircularProgress from '@mui/material/CircularProgress';
 import AddIcon from '@mui/icons-material/Add';
 import CollectionsIcon from '@mui/icons-material/Collections';
 
-import EntriesTable from './EntriesTable';
+import EntriesTable, { FIRST_PAGE } from './EntriesTable';
 import BulkAddDialog from './BulkAddDialog';
 import { BULK_ADD_CONFIGS, type BulkAddConfig, type BulkRow } from './bulkAddConfigs';
 import EntryFormDialog from './EntryFormDialog';
@@ -24,6 +24,7 @@ import {
   useContentTypes,
   useDeleteEntry,
   useEntriesByType,
+  useEntriesPage,
   useSaveEntry,
   useSaveInventory,
   useUploadAsset,
@@ -77,13 +78,14 @@ export default function Admin() {
   const stockByItem = useStockByItem();
 
   const activeType = contentTypes.find((ct) => ct.id === activeTypeId);
-  // The active type's entries, plus those of every type it links to (to
-  // show link fields by name and offer them in the form/bulk add).
-  const neededTypeIds = useMemo(
-    () => (activeType ? Array.from(new Set([activeType.id, ...linkedTypeIds(activeType)])) : []),
-    [activeType]
-  );
+  // Every entry of each type the active one links to (to show link fields
+  // by name and offer them in the form/bulk add). The active type's own
+  // entries are paged by the table instead - except when it links to
+  // itself (a category's parent), which pulls its full list in here too.
+  const neededTypeIds = useMemo(() => (activeType ? Array.from(new Set(linkedTypeIds(activeType))) : []), [activeType]);
   const { entriesByType, error: entriesError, refetch: refetchEntries } = useEntriesByType(neededTypeIds);
+  // The table's first page - shared with the table itself - for the type's total.
+  const firstPage = useEntriesPage(activeTypeId, FIRST_PAGE);
 
   const loading = contentTypesQuery.isPending || assetsQuery.isPending;
   const loadError = contentTypesQuery.error ?? assetsQuery.error ?? entriesError;
@@ -142,7 +144,6 @@ export default function Admin() {
     );
   }
 
-  const activeEntries = activeType ? entriesByType[activeType.id] : undefined;
   const bulkConfig = activeType ? BULK_ADD_CONFIGS[activeType.id] : undefined;
   const bulkCategoryType = contentTypes.find((ct) => ct.id === bulkConfig?.categoryTypeId);
 
@@ -182,9 +183,9 @@ export default function Admin() {
             <Stack direction="row" alignItems="center" justifyContent="space-between" spacing={2}>
               <Typography variant="h5">
                 {activeType.name}
-                {activeEntries && (
+                {firstPage.data && !firstPage.isPlaceholderData && (
                   <Typography component="span" sx={{ color: 'text.secondary', ml: 1 }}>
-                    ({activeEntries.length})
+                    ({firstPage.data.total})
                   </Typography>
                 )}
               </Typography>
@@ -207,7 +208,6 @@ export default function Admin() {
             <EntriesTable
               key={activeType.id}
               contentType={activeType}
-              entries={activeEntries}
               contentTypes={contentTypes}
               entriesByType={entriesByType}
               assets={assets}

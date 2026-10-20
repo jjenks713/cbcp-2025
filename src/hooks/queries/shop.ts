@@ -1,10 +1,10 @@
 import { useMemo } from 'react';
-import { useQuery } from '@tanstack/react-query';
+import { keepPreviousData, useQuery } from '@tanstack/react-query';
 
 import { queryKeys } from '../../lib/query-keys';
 import { useShopItems } from './content';
 import { getInventory, type InventoryRow } from '../../lib/shop-api';
-import { type ShopProduct } from '../../lib/contentful';
+import { getShopItemsPage, type ShopItemsPageParams, type ShopProduct } from '../../lib/contentful';
 
 /** One buyable option of an item: a size (or the item itself), its stock and price. */
 export type ShopVariant = {
@@ -56,6 +56,13 @@ function combine(product: ShopProduct, rows: InventoryRow[]): ShopItem {
   };
 }
 
+/** Each product joined with its stock rows (by itemId). */
+function withInventory(products: ShopProduct[], inventory: InventoryRow[]): ShopItem[] {
+  const byItem = new Map<string, InventoryRow[]>();
+  inventory.forEach((row) => byItem.set(row.itemId, [...(byItem.get(row.itemId) ?? []), row]));
+  return products.map((product) => combine(product, byItem.get(product.itemId) ?? []));
+}
+
 /**
  * Shop items with their stock and per-size prices: Contentful products
  * joined with the inventory by itemId. Loading until both have arrived.
@@ -64,12 +71,37 @@ export function useShopCatalog({ enabled = true } = {}) {
   const productsQuery = useShopItems({ enabled });
   const inventoryQuery = useInventory({ enabled });
 
-  const data = useMemo(() => {
-    if (!productsQuery.data || !inventoryQuery.data) return undefined;
-    const byItem = new Map<string, InventoryRow[]>();
-    inventoryQuery.data.forEach((row) => byItem.set(row.itemId, [...(byItem.get(row.itemId) ?? []), row]));
-    return productsQuery.data.map((product) => combine(product, byItem.get(product.itemId) ?? []));
-  }, [productsQuery.data, inventoryQuery.data]);
+  const data = useMemo(
+    () => (productsQuery.data && inventoryQuery.data ? withInventory(productsQuery.data, inventoryQuery.data) : undefined),
+    [productsQuery.data, inventoryQuery.data]
+  );
 
   return { data, isPending: enabled && (productsQuery.isPending || inventoryQuery.isPending) };
+}
+
+/**
+ * One page of the shop grid (paged and sorted by Contentful), joined with
+ * the inventory - which is small enough to load whole. The previous page
+ * stays up while the next loads. Waits until there are categories to ask for.
+ */
+export function useShopCatalogPage(params: ShopItemsPageParams) {
+  const pageQuery = useQuery({
+    queryKey: queryKeys.content.shopItemsPage(params),
+    queryFn: () => getShopItemsPage(params),
+    enabled: params.categoryIds.length > 0,
+    placeholderData: keepPreviousData,
+  });
+  const inventoryQuery = useInventory();
+
+  const items = useMemo(
+    () => (pageQuery.data && inventoryQuery.data ? withInventory(pageQuery.data.items, inventoryQuery.data) : undefined),
+    [pageQuery.data, inventoryQuery.data]
+  );
+
+  return {
+    items,
+    total: pageQuery.data?.total ?? 0,
+    isPending: pageQuery.isPending || inventoryQuery.isPending,
+    isPlaceholderData: pageQuery.isPlaceholderData,
+  };
 }

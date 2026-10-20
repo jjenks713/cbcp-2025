@@ -7,11 +7,12 @@ import MenuItem from '@mui/material/MenuItem';
 import TextField from '@mui/material/TextField';
 import Container from '@mui/material/Container';
 import Typography from '@mui/material/Typography';
+import Pagination from '@mui/material/Pagination';
 
 import { useResponsive } from '../../hooks/use-responsive';
 import { useShopCategoryList } from '../../hooks/queries/content';
-import { useShopCatalog, type ShopItem } from '../../hooks/queries/shop';
-import { type ShopCategoryOption } from '../../lib/contentful';
+import { useShopCatalogPage } from '../../hooks/queries/shop';
+import { type ShopCategoryOption, type ShopSort } from '../../lib/contentful';
 import { useCart } from '../../lib/cart-context';
 import { ITEM_PARAM } from './item-link';
 import ShopItemCard, { ShopItemCardSkeleton } from './ShopItemCard';
@@ -22,16 +23,12 @@ const SORT_OPTIONS = [
   { value: 'price-asc', label: 'Price: low to high' },
   { value: 'price-desc', label: 'Price: high to low' },
   { value: 'name', label: 'Name' },
-] as const;
+] as const satisfies readonly { value: ShopSort; label: string }[];
 
-type Sort = (typeof SORT_OPTIONS)[number]['value'];
+// Divides evenly into the grid's 2, 3 and 4 columns.
+const PAGE_SIZE = 12;
 
-const SORTERS: Record<Sort, (a: ShopItem, b: ShopItem) => number> = {
-  newest: (a, b) => b.createdAt.localeCompare(a.createdAt),
-  'price-asc': (a, b) => a.price - b.price,
-  'price-desc': (a, b) => b.price - a.price,
-  name: (a, b) => a.name.localeCompare(b.name),
-};
+const PAGE_PARAM = 'page';
 
 const byOrder = (a: ShopCategoryOption, b: ShopCategoryOption) => a.order - b.order || a.name.localeCompare(b.name);
 
@@ -61,34 +58,72 @@ function withDescendants(rootId: string, categories: ShopCategoryOption[]) {
 
 // The in-app shop: every visible shop item, filterable by category (the
 // category lives in the URL - /shop/stickers - so the home page's shop
-// cards link straight to it) and sortable. Layout adapted from the Zone
-// template's e-commerce catalog page. Only reachable while the
-// hide-cbcp-shop flag is off (see App/ShopGate.tsx).
+// cards link straight to it), sortable, and paged by Contentful (the page
+// is in the URL too - ?page=2 - so back/refresh keep your place). Layout
+// adapted from the Zone template's e-commerce catalog page. Only reachable
+// while the hide-cbcp-shop flag is off (see App/ShopGate.tsx).
 export default function Shop() {
   const mdUp = useResponsive('up', 'md');
   const navigate = useNavigate();
   const { categorySlug } = useParams();
-  const [sort, setSort] = useState<Sort>('newest');
+  const [sort, setSort] = useState<ShopSort>('newest');
+  const [searchParams, setSearchParams] = useSearchParams();
+  const page = Math.max(1, Number(searchParams.get(PAGE_PARAM)) || 1);
 
   const categoriesQuery = useShopCategoryList();
-  const itemsQuery = useShopCatalog();
   const categories = useMemo(() => categoriesQuery.data ?? [], [categoriesQuery.data]);
   const tree = useMemo(() => buildTree(categories), [categories]);
   const selectedCategory = categories.find((c) => c.slug === categorySlug);
-  const loading = categoriesQuery.isPending || itemsQuery.isPending;
 
-  const items = useMemo(() => {
-    const all = itemsQuery.data ?? [];
-    const allowed = selectedCategory ? withDescendants(selectedCategory.id, categories) : null;
-    return all.filter((item) => !allowed || allowed.has(item.categoryId)).sort(SORTERS[sort]);
-  }, [itemsQuery.data, selectedCategory, categories, sort]);
+  // The selected category and everything under it, or every visible
+  // category - so items filed under a hidden one stay out either way.
+  const categoryIds = useMemo(
+    () => (selectedCategory ? Array.from(withDescendants(selectedCategory.id, categories)) : categories.map((c) => c.id)).sort(),
+    [selectedCategory, categories]
+  );
+  const catalog = useShopCatalogPage({ categoryIds, sort, page, pageSize: PAGE_SIZE });
+  const items = catalog.items ?? [];
+  const pageCount = Math.ceil(catalog.total / PAGE_SIZE);
+  // No categories at all means nothing to load (the page query never runs).
+  const loading = categoriesQuery.isPending || (categoryIds.length > 0 && catalog.isPending);
 
   const selectCategory = (slug?: string) => navigate(slug ? `/shop/${slug}` : '/shop');
+
+  const setPage = (next: number) =>
+    setSearchParams((prev) => {
+      const params = new URLSearchParams(prev);
+      if (next > 1) params.set(PAGE_PARAM, String(next));
+      else params.delete(PAGE_PARAM);
+      return params;
+    });
+
+  const handleSort = (next: ShopSort) => {
+    setSort(next);
+    setPage(1);
+  };
+
+  const handlePage = (_: React.ChangeEvent<unknown>, value: number) => {
+    setPage(value);
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  };
+
+  // A ?page past the end (e.g. a stale link after items sold out) - go to the last real page.
+  useEffect(() => {
+    if (!catalog.isPending && !catalog.isPlaceholderData && pageCount > 0 && page > pageCount) {
+      setSearchParams(
+        (prev) => {
+          const params = new URLSearchParams(prev);
+          params.set(PAGE_PARAM, String(pageCount));
+          return params;
+        },
+        { replace: true }
+      );
+    }
+  }, [catalog.isPending, catalog.isPlaceholderData, page, pageCount, setSearchParams]);
 
   // ?item=<id> (e.g. an item name clicked in the cart) opens that item's
   // drawer; once the drawer closes, the param is dropped so a refresh
   // doesn't reopen it.
-  const [searchParams, setSearchParams] = useSearchParams();
   const linkedItemId = searchParams.get(ITEM_PARAM);
   const { itemDrawerId, openItem } = useCart();
   useEffect(() => {
@@ -137,14 +172,14 @@ export default function Shop() {
         <Box sx={{ flexGrow: 1, minWidth: 0 }}>
           <Stack direction="row" alignItems="center" justifyContent="space-between" spacing={2} sx={{ mb: 4 }}>
             <Typography variant="body2" sx={{ color: 'text.secondary' }}>
-              {loading ? ' ' : `${items.length} item${items.length === 1 ? '' : 's'}`}
+              {loading ? ' ' : `${catalog.total} item${catalog.total === 1 ? '' : 's'}`}
             </Typography>
             <TextField
               select
               size="small"
               label="Sort by"
               value={sort}
-              onChange={(e) => setSort(e.target.value as Sort)}
+              onChange={(e) => handleSort(e.target.value as ShopSort)}
               sx={{ width: 200, borderRadius: 1 }}
             >
               {SORT_OPTIONS.map((option) => (
@@ -182,6 +217,16 @@ export default function Shop() {
                 ? Array.from({ length: 8 }, (_, i) => <ShopItemCardSkeleton key={i} />)
                 : items.map((item) => <ShopItemCard key={item.id} item={item} />)}
             </Box>
+          )}
+
+          {pageCount > 1 && (
+            <Pagination
+              count={pageCount}
+              page={Math.min(page, pageCount)}
+              onChange={handlePage}
+              color="primary"
+              sx={{ mt: { xs: 5, md: 8 }, '& .MuiPagination-ul': { justifyContent: 'center' } }}
+            />
           )}
         </Box>
       </Stack>

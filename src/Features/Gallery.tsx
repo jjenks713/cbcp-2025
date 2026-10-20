@@ -9,6 +9,7 @@ import Paper from '@mui/material/Paper';
 import Stack from '@mui/material/Stack';
 import Container from '@mui/material/Container';
 import Typography from '@mui/material/Typography';
+import Pagination from '@mui/material/Pagination';
 import { alpha, useTheme } from '@mui/material/styles';
 import { motion as m } from 'framer-motion';
 
@@ -18,7 +19,7 @@ import { RouterLink } from '../components/RouterLink';
 import ArtworkModal from '../components/artwork-modal';
 import { varHover, varTranHover, MotionViewport, varZoom } from '../components/animate';
 import { useResponsive } from '../hooks/use-responsive';
-import { useArtworks, useCategories } from '../hooks/queries/content';
+import { useArtwork, useArtworksPage, useCategories } from '../hooks/queries/content';
 import { type ArtItem, type Category, contentfulImage } from '../lib/contentful';
 import { PIECE_PARAM, galleryPieceHref } from '../lib/galleryLink';
 
@@ -41,12 +42,12 @@ function sortCategories(categories: Category[]): Category[] {
 
 const NO_ARTWORKS: ArtItem[] = [];
 
+// 4 rows of the 3-column desktop grid.
+const PAGE_SIZE = 12;
+
 export default function Gallery() {
   const categoriesQuery = useCategories();
-  const artworksQuery = useArtworks();
   const categories = useMemo(() => sortCategories(categoriesQuery.data ?? []), [categoriesQuery.data]);
-  const artworks = artworksQuery.data ?? NO_ARTWORKS;
-  const loading = categoriesQuery.isPending || artworksQuery.isPending;
 
   const [searchParams, setSearchParams] = useSearchParams();
   const openPieceId = searchParams.get(PIECE_PARAM);
@@ -54,19 +55,32 @@ export default function Gallery() {
   // linking straight to it) - read once, so opening/closing pieces later
   // doesn't move the default tab.
   const [initialPieceId] = useState(openPieceId);
+  const initialPieceQuery = useArtwork(initialPieceId);
 
   // Default to the Prints tab - unless we're deep-linking straight to a
   // piece, in which case show whichever tab that piece actually lives in
-  // so the grid behind the modal matches what's open. Picking a tab
-  // replaces the default.
+  // so the grid behind the modal matches what's open (waiting for the
+  // piece to load first, rather than loading Prints and then switching).
+  // Picking a tab replaces the default.
   const [chosenTab, setTopTab] = useState('');
   const defaultTab = useMemo(() => {
-    const piece = artworks.find((a) => a.id === initialPieceId);
+    if (initialPieceId && initialPieceQuery.isPending) return '';
     const printsCategory = categories.find((c) => c.name === 'Prints');
-    return piece?.categoryIds?.[0] ?? printsCategory?.id ?? categories[0]?.id ?? '';
-  }, [artworks, categories, initialPieceId]);
+    return initialPieceQuery.data?.categoryIds?.[0] ?? printsCategory?.id ?? categories[0]?.id ?? '';
+  }, [categories, initialPieceId, initialPieceQuery.isPending, initialPieceQuery.data]);
   const topTab = chosenTab || defaultTab;
-  const openPiece = artworks.find((a) => a.id === openPieceId) ?? null;
+
+  const [page, setPage] = useState(1);
+  const pageQuery = useArtworksPage({ categoryId: topTab, page, pageSize: PAGE_SIZE });
+  const artworks = pageQuery.data?.items ?? NO_ARTWORKS;
+  const pageCount = Math.ceil((pageQuery.data?.total ?? 0) / PAGE_SIZE);
+  const loading = categoriesQuery.isPending || pageQuery.isPending;
+
+  // The open piece is usually one on this page; a link to one elsewhere
+  // (another page or tab) loads it on its own.
+  const pieceOnPage = artworks.find((a) => a.id === openPieceId);
+  const linkedPieceQuery = useArtwork(pieceOnPage ? null : openPieceId);
+  const openPiece = pieceOnPage ?? (openPieceId ? linkedPieceQuery.data : null) ?? null;
 
   const closeModal = () => {
     setSearchParams(
@@ -79,13 +93,14 @@ export default function Gallery() {
     );
   };
 
-  const filtered = useMemo(
-    () => artworks.filter((item) => item.categoryIds?.includes(topTab)),
-    [artworks, topTab]
-  );
-
   const handleTopTab = (_: React.SyntheticEvent, value: string) => {
     setTopTab(value);
+    setPage(1);
+  };
+
+  const handlePage = (_: React.ChangeEvent<unknown>, value: number) => {
+    setPage(value);
+    window.scrollTo({ top: 0, behavior: 'smooth' });
   };
 
   return (
@@ -110,7 +125,7 @@ export default function Gallery() {
         ))}
       </Tabs>
 
-      {!loading && filtered.length === 0 && (
+      {!loading && artworks.length === 0 && (
         <Typography sx={{ color: 'text.secondary', py: 10, textAlign: 'center' }}>
           No pieces in this category yet.
         </Typography>
@@ -127,10 +142,20 @@ export default function Gallery() {
           },
         }}
       >
-        {filtered.map((item) => (
+        {artworks.map((item) => (
           <GalleryItem key={item.id} item={item} />
         ))}
       </Box>
+
+      {pageCount > 1 && (
+        <Pagination
+          count={pageCount}
+          page={page}
+          onChange={handlePage}
+          color="primary"
+          sx={{ mt: { xs: 5, md: 8 }, '& .MuiPagination-ul': { justifyContent: 'center' } }}
+        />
+      )}
 
       <ArtworkModal item={openPiece} open={Boolean(openPiece)} onClose={closeModal} />
 

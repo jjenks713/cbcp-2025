@@ -84,9 +84,36 @@ function toEntryDto(entry, fieldDefs) {
   };
 }
 
+async function getContentType(contentTypeId) {
+  return normalizeContentType(await client.contentType.get({ ...envParams, contentTypeId }));
+}
+
 async function getFieldDefs(contentTypeId) {
-  const contentType = await client.contentType.get({ ...envParams, contentTypeId });
-  return normalizeContentType(contentType).fields;
+  return (await getContentType(contentTypeId)).fields;
+}
+
+// Field ids end up inside Contentful query keys (fields.<id>), so only
+// accept plain identifiers.
+const FIELD_ID = /^[A-Za-z0-9_]+$/;
+
+/**
+ * Contentful query params for one page of the entries table: newest first,
+ * optionally searched by the display field, filtered to entries linking to
+ * any of `linkIds` through `linkField`, and by Show in App.
+ */
+function entriesPageQuery(contentType, { skip, limit, search, linkField, linkIds, show }) {
+  const query = {
+    content_type: contentType.id,
+    order: '-sys.createdAt',
+    skip: Math.max(0, Number(skip) || 0),
+    limit: Math.min(100, Math.max(1, Number(limit) || 10)),
+  };
+  if (search && contentType.displayField) query[`fields.${contentType.displayField}[match]`] = search;
+  if (linkField && FIELD_ID.test(linkField) && linkIds) query[`fields.${linkField}.sys.id[in]`] = linkIds;
+  // Entries made before the field existed have no value - they count as hidden.
+  if (show === 'shown') query['fields.showInApp'] = true;
+  if (show === 'hidden') query['fields.showInApp[ne]'] = true;
+  return query;
 }
 
 router.get(
@@ -113,17 +140,21 @@ router.get(
   })
 );
 
+// With ?limit, one page of the entries table (see entriesPageQuery for the
+// other params) plus the matching total. Without it, every entry of the
+// type - what the form and table use to look up linked entries by id.
 router.get(
   '/entries/:contentTypeId',
   asyncHandler(async (req, res) => {
-    const { contentTypeId } = req.params;
-    const fieldDefs = await getFieldDefs(contentTypeId);
-    const result = await client.entry.getMany({
-      ...envParams,
-      query: { content_type: contentTypeId, limit: 1000 },
-    });
+    const contentType = await getContentType(req.params.contentTypeId);
+    const query =
+      req.query.limit !== undefined
+        ? entriesPageQuery(contentType, req.query)
+        : { content_type: contentType.id, limit: 1000 };
+    const result = await client.entry.getMany({ ...envParams, query });
     res.json({
-      entries: result.items.map((item) => toEntryDto(item, fieldDefs)),
+      entries: result.items.map((item) => toEntryDto(item, contentType.fields)),
+      total: result.total,
     });
   })
 );

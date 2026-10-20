@@ -55,6 +55,20 @@ export const GENERATED_FIELDS: Record<string, string[]> = { shopItem: ['itemId']
 export const isGeneratedField = (contentTypeId: string, fieldId: string) =>
   GENERATED_FIELDS[contentTypeId]?.includes(fieldId) ?? false;
 
+/** What the entries table asks the API for - one page, searched and filtered server-side. */
+export type EntriesPageParams = {
+  page: number;
+  rowsPerPage: number;
+  search: string;
+  // The link field to filter on (e.g. artwork's categories) and the ids
+  // it must link to any of; no filter when linkIds is empty.
+  linkField?: string;
+  linkIds: string[];
+  show: 'all' | 'shown' | 'hidden';
+};
+
+export type EntriesPage = { entries: Entry[]; total: number };
+
 const BASE = '/api/admin/contentful';
 
 export function createAdminApi(token: string | null) {
@@ -68,6 +82,16 @@ export function createAdminApi(token: string | null) {
 
     getEntries: (contentTypeId: string) =>
       request<{ entries: Entry[] }>(`${BASE}/entries/${contentTypeId}`, { headers }).then((r) => r.entries),
+
+    getEntriesPage: (contentTypeId: string, { page, rowsPerPage, search, linkField, linkIds, show }: EntriesPageParams) => {
+      const query = new URLSearchParams({ skip: String(page * rowsPerPage), limit: String(rowsPerPage), show });
+      if (search.trim()) query.set('search', search.trim());
+      if (linkField && linkIds.length) {
+        query.set('linkField', linkField);
+        query.set('linkIds', linkIds.join(','));
+      }
+      return request<EntriesPage>(`${BASE}/entries/${contentTypeId}?${query}`, { headers });
+    },
 
     createEntry: (contentTypeId: string, fields: Entry['fields']) =>
       request<{ entry: Entry }>(`${BASE}/entries/${contentTypeId}`, {
