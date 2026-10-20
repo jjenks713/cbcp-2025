@@ -1,5 +1,7 @@
 import { useEffect, useState } from 'react';
 import { useFlags } from 'launchdarkly-react-client-sdk';
+import { useShopEnabled } from '../hooks/use-shop-link';
+import ContentColumn from '../components/ContentColumn';
 
 import BackToTop from '../components/back-to-top';
 import { SCROLL_RESET_EVENT } from '../lib/scrollReset';
@@ -20,10 +22,12 @@ export default function Main() {
   // section tree resets each section's MotionViewport (via `once: true`
   // scroll-reveal) so the animations are fresh again on the way back down.
   const [resetKey, setResetKey] = useState(0);
-  // Flag keys are camelCased by the SDK by default (hide-cbcp-shop -> hideCbcpShop).
-  // Both default to hidden (true) until LaunchDarkly is configured/loaded
-  // or the underlying features are actually ready - see src/lib/launchdarkly.ts
-  const { hideCbcpShop = true, hideReviews = true } = useFlags();
+  // Flag keys are camelCased by the SDK by default (hide-reviews -> hideReviews).
+  // Defaults to hidden (true) until LaunchDarkly is configured/loaded or
+  // the feature is actually ready - see src/lib/launchdarkly.ts. The shop
+  // flag goes through useShopEnabled, shared with every shop link.
+  const { hideReviews = true } = useFlags();
+  const shopEnabled = useShopEnabled();
 
   useEffect(() => {
     const handleReset = () => setResetKey((k) => k + 1);
@@ -36,14 +40,21 @@ export default function Main() {
       <CBCPHero />
 
       <div key={resetKey}>
-        <CBCPLatestArt />
-        <CBCPSocialBrands />
-        <CBCPAbout />
-        {!hideCbcpShop && <CBCPShop />}
-        <CBCPArtStyles />
-        <CBCPArtwork />
+        {/* Content sections sit in the readable column; the banners
+            between them (artist, testimonials, contact) span the full
+            width over the background pattern. */}
+        <ContentColumn>
+          <CBCPLatestArt />
+          <CBCPSocialBrands />
+          <CBCPAbout />
+          {shopEnabled && <CBCPShop />}
+          <CBCPArtStyles />
+          <CBCPArtwork />
+        </ContentColumn>
         <CBCPArtist />
-        <CBCPFaqs />
+        <ContentColumn>
+          <CBCPFaqs />
+        </ContentColumn>
         {!hideReviews && <CBCPTestimonials />}
         <CBCPContact />
       </div>

@@ -17,7 +17,7 @@ import type { Theme } from '@mui/material/styles';
 import TextMaxLine from '../../components/text-max-line';
 import { MotionViewport, varFade, varZoom } from '../../components/animate';
 import { useShopCategories, withFallback } from '../../hooks/queries/content';
-import { ETSY_SHOP_URL } from '../../lib/links';
+import { useShopLink } from '../../hooks/use-shop-link';
 
 // 'secondary' is deliberately excluded — it's the theme's near-black
 // background color (#262626), not a usable accent against a dark card.
@@ -120,9 +120,11 @@ export default function CBCPShop() {
 }
 
 function ShopCard({ product, index }: { product: typeof FALLBACK_PRODUCTS[number]; index: number }) {
-  const { name, icon, content } = product;
+  const { name, icon, content, path } = product;
   const color = COLORS[index % COLORS.length];
   const ShopIcon = SHOP_ICONS[icon] ?? DEFAULT_SHOP_ICON;
+  // This category in the in-app shop, or Etsy while the shop is hidden.
+  const shopLink = useShopLink(path);
 
   return (
     <Card
@@ -148,8 +150,7 @@ function ShopCard({ product, index }: { product: typeof FALLBACK_PRODUCTS[number
         <TextMaxLine variant="body2" sx={{ color: 'text.secondary' }}>{content}</TextMaxLine>
       </Stack>
 
-      {/* In-app shop isn't built yet — every shop link goes to Etsy for now. */}
-      <IconButton component="a" href={ETSY_SHOP_URL} target="_blank" rel="noopener" color={color}>
+      <IconButton {...shopLink} color={color} aria-label={`Shop ${name}`}>
         <ArrowForward />
       </IconButton>
     </Card>

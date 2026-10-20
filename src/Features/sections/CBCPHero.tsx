@@ -11,11 +11,12 @@ import Image from '../../components/image';
 import { bgGradient } from '../../Theme/css';
 import { useResponsive } from '../../hooks/use-responsive';
 import { RouterLink } from '../../components/RouterLink';
-import { ETSY_SHOP_URL } from '../../lib/links';
+import { useShopLink } from '../../hooks/use-shop-link';
 
 export default function CBCPHero() {
   const theme = useTheme();
   const mdUp = useResponsive('up', 'md');
+  const shopLink = useShopLink();
 
   return (
     <Box sx={{ position: 'relative', overflow: 'hidden' }}>
@@ -85,12 +86,9 @@ export default function CBCPHero() {
               justifyContent={{ xs: 'center', md: 'unset' }}
               sx={{ mt: 5 }}
             >
-              {/* In-app shop isn't built yet — every shop link goes to Etsy for now. */}
+              {/* In-app shop when the hide-cbcp-shop flag is off, Etsy otherwise. */}
               <Button
-                component="a"
-                href={ETSY_SHOP_URL}
-                target="_blank"
-                rel="noopener"
+                {...shopLink}
                 variant="contained"
                 color="inherit"
                 size="large"

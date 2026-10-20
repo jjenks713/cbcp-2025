@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
-import { Button, Stack, Typography, IconButton, Drawer, Box, Avatar, Menu, MenuItem, Divider, ListItemIcon } from '@mui/material';
+import { Button, Stack, Typography, IconButton, Drawer, Box, Avatar, Badge, Menu, MenuItem, Divider, ListItemIcon } from '@mui/material';
+import ShoppingCartIcon from '@mui/icons-material/ShoppingCart';
 import MenuIcon from '@mui/icons-material/Menu';
 import CloseIcon from '@mui/icons-material/Close';
 import PersonIcon from '@mui/icons-material/Person';
@@ -7,19 +8,27 @@ import LogoutIcon from '@mui/icons-material/Logout';
 import EditNoteIcon from '@mui/icons-material/EditNote';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { useResponsive } from '../hooks/use-responsive';
+import { useShopEnabled } from '../hooks/use-shop-link';
+import { useCart } from '../lib/cart-context';import CartDrawer from '../Features/Shop/CartDrawer';
+import ItemDrawer from '../Features/Shop/ItemDrawer';
 import { useAuth, hasRole, type AuthUser } from '../lib/auth-context';
 import { ETSY_SHOP_URL } from '../lib/links';
 import { scrollToTopAndReset } from '../lib/scrollReset';
 
-const NAV_LINKS = [
+type NavLink = { label: string; path: string; external?: boolean };
+
+const SITE_LINKS: NavLink[] = [
     { label: 'Home', path: '/' },
     { label: 'Gallery', path: '/gallery' },
     // Jumps to the "Meet the Artist" section on the landing page rather
     // than a separate page — see Routes.tsx for the scroll-to-hash effect.
     { label: 'About', path: '/#meet-the-artist' },
-    // In-app shop isn't built yet — goes to Etsy for now.
-    { label: 'Shop', path: ETSY_SHOP_URL, external: true },
 ];
+
+// The in-app shop while the hide-cbcp-shop flag is off; Etsy otherwise
+// (including before LaunchDarkly has loaded, since the flag defaults to hidden).
+const shopLink = (shopEnabled: boolean): NavLink =>
+    shopEnabled ? { label: 'Shop', path: '/shop' } : { label: 'Shop', path: ETSY_SHOP_URL, external: true };
 
 // Nav labels show as written ("Home", "Log Out"), not the buttons' default all caps.
 const LINK_SX = { textTransform: 'none' } as const;
@@ -39,6 +48,17 @@ const Navigation = () => {
     const navigate = useNavigate();
     const location = useLocation();
     const { user, logout } = useAuth();
+    const shopEnabled = useShopEnabled();
+    const NAV_LINKS = [...SITE_LINKS, shopLink(shopEnabled)];
+    const { count: cartCount, openDrawer: openCart } = useCart();
+    // Opens the cart drawer; only shown while the in-app shop is on.
+    const cartButton = shopEnabled && (
+        <IconButton onClick={openCart} color="primary" aria-label={`Open cart (${cartCount} item${cartCount === 1 ? '' : 's'})`}>
+            <Badge badgeContent={cartCount} color="error">
+                <ShoppingCartIcon />
+            </Badge>
+        </IconButton>
+    );
     const mdUp = useResponsive('up', 'md');
     const [mobileOpen, setMobileOpen] = useState(false);
     // Anchor for the user menu opened from the avatar (desktop).
@@ -106,6 +126,7 @@ const Navigation = () => {
                             {link.label}
                         </Button>
                     ))}
+                    {cartButton}
                     {user && (
                         <>
                             <IconButton
@@ -152,9 +173,12 @@ const Navigation = () => {
                     )}
                 </Stack>
             ) : (
-                <IconButton onClick={() => setMobileOpen(true)} aria-label="Open menu" sx={{ color: 'common.white' }}>
-                    <MenuIcon />
-                </IconButton>
+                <Stack direction="row" alignItems="center" spacing={0.5}>
+                    {cartButton}
+                    <IconButton onClick={() => setMobileOpen(true)} aria-label="Open menu" sx={{ color: 'common.white' }}>
+                        <MenuIcon />
+                    </IconButton>
+                </Stack>
             )}
 
             <Drawer anchor="right" open={mobileOpen} onClose={() => setMobileOpen(false)}>
@@ -205,6 +229,13 @@ const Navigation = () => {
                     </Stack>
                 </Box>
             </Drawer>
+
+            {shopEnabled && (
+                <>
+                    <CartDrawer />
+                    <ItemDrawer />
+                </>
+            )}
         </Stack>
     )
 };

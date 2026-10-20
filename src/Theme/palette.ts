@@ -23,9 +23,9 @@ const palette = {
         paper: '#ffffff',
     },
     text: {
-        primary: '#f9f9f9ff',
-        secondary: 'rgb(179, 179, 179)',
-        disabled: 'rgb(126, 126, 126)',
+        primary: 'rgb(255, 254, 254)',
+        secondary: 'rgb(223, 223, 223)',
+        disabled: 'rgb(184, 184, 184)',
     },
     action: {
         hover: '#c9c9c9ff',

@@ -10,6 +10,13 @@ export const queryKeys = {
     artist: () => ['content', 'artist'] as const,
     faqs: () => ['content', 'faqs'] as const,
     shopCategories: () => ['content', 'shopCategories'] as const,
+    shopCategoryList: () => ['content', 'shopCategoryList'] as const,
+    shopItems: () => ['content', 'shopItems'] as const,
+  },
+  // Shop data from the API (stock and per-size prices).
+  shop: {
+    all: ['shop'] as const,
+    inventory: () => ['shop', 'inventory'] as const,
   },
   // The logged-in user (GET /api/auth/me). Not keyed by token (keeps it out
   // of devtools) - auth-context resets this on login/logout instead.
@@ -23,5 +30,6 @@ export const queryKeys = {
     contentTypes: () => ['admin', 'contentTypes'] as const,
     assets: () => ['admin', 'assets'] as const,
     entries: (contentTypeId: string) => ['admin', 'entries', contentTypeId] as const,
+    inventory: (itemId: string) => ['admin', 'inventory', itemId] as const,
   },
 };
