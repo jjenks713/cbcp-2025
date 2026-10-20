@@ -14,6 +14,7 @@ import { useCart } from '../../lib/cart-context';
 import { RouterLink } from '../../components/RouterLink';
 import { shopItemHref } from './item-link';
 import { type CartItem } from './use-cart-items';
+import { contentfulImage } from '../../lib/contentful';
 
 type Props = {
   cartItem: CartItem;
@@ -37,7 +38,7 @@ export default function CartLineRow({ cartItem, onRemove, quantityControl }: Pro
       {item.coverUrl ? (
         <Box
           component="img"
-          src={`${item.coverUrl}?w=128&h=128&fit=fill`}
+          src={contentfulImage(item.coverUrl, 128, { square: true })}
           alt=""
           sx={{ width: 64, height: 64, borderRadius: 1.5, objectFit: 'cover', flexShrink: 0, bgcolor: 'grey.800' }}
         />

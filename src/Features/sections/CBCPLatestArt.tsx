@@ -12,7 +12,7 @@ import { MotionViewport, varFade, varZoom } from '../../components/animate';
 import Carousel, { useCarousel, CarouselDots, CarouselArrows } from '../../components/carousel';
 import { useResponsive } from '../../hooks/use-responsive';
 import { useArtworks } from '../../hooks/queries/content';
-import { type ArtItem as ArtItemData } from '../../lib/contentful';
+import { type ArtItem as ArtItemData, contentfulImage } from '../../lib/contentful';
 import { galleryPieceHref } from '../../lib/galleryLink';
 
 export default function CBCPLatestArt() {
@@ -116,8 +116,9 @@ function ArtItem({ item }: { item: ArtItemData }) {
     >
       <Box
         component="img"
-        src={item.coverUrl}
+        src={contentfulImage(item.coverUrl, 600)}
         alt={item.title}
+        loading="lazy"
         sx={{
           position: 'absolute',
           top: 0,

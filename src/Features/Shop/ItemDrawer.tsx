@@ -17,9 +17,9 @@ import { formatPrice } from '../../lib/format';
 import { lineKey, useCart } from '../../lib/cart-context';
 import { useShopCatalog, variantFor, type ShopItem } from '../../hooks/queries/shop';
 import QuantityStepper from './QuantityStepper';
+import { contentfulImage } from '../../lib/contentful';
 
 const DIVIDER = 'rgba(255, 255, 255, 0.12)';
-const imageUrl = (url: string, size: number) => `${url}?w=${size}&h=${size}&fit=fill`;
 
 // Product quick view: opened from a shop card's cart button (or its image
 // or name), a "You might also like" item that needs a size, or a link to
@@ -98,7 +98,7 @@ function ItemDetails({ item }: { item: ShopItem }) {
         {photo ? (
           <Box
             component="img"
-            src={imageUrl(photo, 880)}
+            src={contentfulImage(photo, 880, { square: true })}
             alt={item.name}
             sx={{ width: 1, aspectRatio: '1 / 1', objectFit: 'cover', borderRadius: 2, bgcolor: 'grey.800' }}
           />
@@ -139,7 +139,7 @@ function ItemDetails({ item }: { item: ShopItem }) {
               >
                 <Box
                   component="img"
-                  src={imageUrl(url, 128)}
+                  src={contentfulImage(url, 128, { square: true })}
                   alt=""
                   sx={{ width: 56, height: 56, objectFit: 'cover', borderRadius: 1, display: 'block' }}
                 />

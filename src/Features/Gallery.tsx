@@ -19,7 +19,7 @@ import ArtworkModal from '../components/artwork-modal';
 import { varHover, varTranHover, MotionViewport, varZoom } from '../components/animate';
 import { useResponsive } from '../hooks/use-responsive';
 import { useArtworks, useCategories } from '../hooks/queries/content';
-import { type ArtItem, type Category } from '../lib/contentful';
+import { type ArtItem, type Category, contentfulImage } from '../lib/contentful';
 import { PIECE_PARAM, galleryPieceHref } from '../lib/galleryLink';
 
 // Flat display order for the gallery's tabs — Prints and Artist Books are
@@ -191,7 +191,7 @@ function GalleryItem({ item }: { item: ArtItem }) {
             <m.div variants={varHover(1.1)} transition={varTranHover()}>
               <Image
                 alt={item.title}
-                src={item.coverUrl}
+                src={contentfulImage(item.coverUrl, 800)}
                 ratio={mdUp ? '3/4' : '1/1'}
                 overlay={alpha(theme.palette.grey[900], 0.48)}
                 // Source photos are flat-lay shots with a wood backdrop
