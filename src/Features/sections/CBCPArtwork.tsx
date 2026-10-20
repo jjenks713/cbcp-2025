@@ -17,7 +17,7 @@ import { RouterLink } from '../../components/RouterLink';
 import { varHover, varTranHover, MotionViewport, varFade, varZoom } from '../../components/animate';
 import { useResponsive } from '../../hooks/use-responsive';
 import { useArtworks } from '../../hooks/queries/content';
-import { type ArtItem } from '../../lib/contentful';
+import { type ArtItem, contentfulImage } from '../../lib/contentful';
 import { galleryPieceHref } from '../../lib/galleryLink';
 
 export default function CBCPArtwork() {
@@ -100,7 +100,7 @@ function LargeItem({ item }: { item: ArtItem }) {
       }}
     >
       <Box sx={{ p: 0.75, display: 'flex', alignItems: 'center' }}>
-        <Image alt="artwork" src={item.coverUrl} ratio="3/4" sx={{ borderRadius: 2 }} />
+        <Image alt="artwork" src={contentfulImage(item.coverUrl, 800)} ratio="3/4" sx={{ borderRadius: 2 }} />
       </Box>
       {/*
         No height: 1 / justifyContent: space-between here — the image's
@@ -165,7 +165,7 @@ function SmallItem({ item, square }: { item: ArtItem; square?: boolean }) {
         <m.div variants={varHover(1.25)} transition={varTranHover()}>
           <Image
             alt="artwork"
-            src={item.coverUrl}
+            src={contentfulImage(item.coverUrl, 800)}
             ratio={(square && '1/1') || (mdUp && '3/4') || '1/1'}
             overlay={alpha(theme.palette.grey[900], 0.48)}
             // Source photos are flat-lay shots with a wood backdrop around

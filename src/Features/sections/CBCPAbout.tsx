@@ -13,7 +13,7 @@ import { fShortenNumber } from '../../utils/format-number';
 import { RouterLink } from '../../components/RouterLink';
 import { MotionViewport, varFade, varZoom, varTranEnter } from '../../components/animate';
 import { useArtist } from '../../hooks/queries/content';
-import { type ArtistProfile } from '../../lib/contentful';
+import { type ArtistProfile, contentfulImage } from '../../lib/contentful';
 
 const FALLBACK_ARTIST: ArtistProfile = {
   name: 'Mary Jenkin',
@@ -65,7 +65,10 @@ export default function CBCPAbout() {
         <Box component={m.div} variants={varZoom().in}>
           <Image
             alt="A wall of framed Creepy But Cute Press artwork"
-            src="https://images.ctfassets.net/lrvbgospprcp/4If2JgGZ7j6KWM22WaAuVe/0c5b09899118f3d2da11fedc9ebdfa21/Yue.jpg"
+            src={contentfulImage(
+              'https://images.ctfassets.net/lrvbgospprcp/4If2JgGZ7j6KWM22WaAuVe/0c5b09899118f3d2da11fedc9ebdfa21/Yue.jpg',
+              1600
+            )}
             ratio="16/9"
             sx={{ borderRadius: 1.5, mb: { xs: 5, md: 10 } }}
           />

@@ -7,6 +7,7 @@ import Image from '../image';
 import { bgGradient } from '../../Theme/css';
 import Lightbox, { useLightbox } from '../lightbox';
 import Carousel, { useCarousel, CarouselArrows } from '../carousel';
+import { contentfulImage } from '../../lib/contentful';
 
 const THUMB_SIZE = 56;
 
@@ -46,7 +47,9 @@ type Props = {
 export default function ArtworkModalCarousel({ title, images }: Props) {
   const theme = useTheme();
 
-  const slides = images.map((src) => ({ src }));
+  // The lightbox is for looking closely, so it gets a bigger render than
+  // the carousel below; both are still a fraction of the original upload.
+  const slides = images.map((src) => ({ src: contentfulImage(src, 2400) }));
   const lightbox = useLightbox(slides);
 
   const carouselLarge = useCarousel({ draggable: false, adaptiveHeight: true });
@@ -84,13 +87,13 @@ export default function ArtworkModalCarousel({ title, images }: Props) {
         onPrev={images.length > 1 ? carouselThumb.onPrev : undefined}
       >
         <Carousel {...carouselLarge.carouselSettings} asNavFor={carouselThumb.nav} ref={carouselLarge.carouselRef}>
-          {slides.map((slide) => (
+          {images.map((src, index) => (
             <Image
-              key={slide.src}
+              key={src}
               alt={title}
-              src={slide.src}
+              src={contentfulImage(src, 1200)}
               ratio="1/1"
-              onClick={() => lightbox.onOpen(slide.src)}
+              onClick={() => lightbox.onOpen(slides[index].src)}
               sx={{ cursor: 'zoom-in' }}
             />
           ))}
@@ -101,12 +104,12 @@ export default function ArtworkModalCarousel({ title, images }: Props) {
         <StyledThumbnailsContainer length={images.length}>
           <Box sx={{ py: 1.5 }}>
             <Carousel {...carouselThumb.carouselSettings} asNavFor={carouselLarge.nav} ref={carouselThumb.carouselRef}>
-              {slides.map((slide, index) => (
-                <Box key={slide.src} sx={{ px: 0.5 }}>
+              {images.map((src, index) => (
+                <Box key={src} sx={{ px: 0.5 }}>
                   <Box
                     component="img"
                     alt={`${title} ${index + 1}`}
-                    src={slide.src}
+                    src={contentfulImage(src, THUMB_SIZE * 2, { square: true })}
                     sx={{
                       width: THUMB_SIZE,
                       height: THUMB_SIZE,

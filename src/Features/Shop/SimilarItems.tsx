@@ -12,6 +12,7 @@ import { useCart } from '../../lib/cart-context';
 import { formatPrice } from '../../lib/format';
 import TextMaxLine from '../../components/text-max-line';
 import { useShopCatalog, type ShopItem } from '../../hooks/queries/shop';
+import { contentfulImage } from '../../lib/contentful';
 
 const MAX_ITEMS = 10;
 const TILE = 128;
@@ -89,7 +90,7 @@ export default function SimilarItems({ enabled = true, muted = 'text.secondary' 
                 {item.coverUrl ? (
                   <Box
                     component="img"
-                    src={`${item.coverUrl}?w=256&h=256&fit=fill`}
+                    src={contentfulImage(item.coverUrl, 256, { square: true })}
                     alt=""
                     loading="lazy"
                     sx={{ width: TILE, height: TILE, objectFit: 'cover', borderRadius: 1.5, display: 'block', bgcolor: 'grey.800' }}

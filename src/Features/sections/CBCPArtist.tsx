@@ -11,7 +11,7 @@ import Image from '../../components/image';
 import { bgGradient } from '../../Theme/css';
 import { MotionViewport, varFade, varZoom } from '../../components/animate';
 import { useArtist } from '../../hooks/queries/content';
-import { type ArtistProfile } from '../../lib/contentful';
+import { type ArtistProfile, contentfulImage } from '../../lib/contentful';
 import { useShopLink } from '../../hooks/use-shop-link';
 
 // Copy carried over verbatim from the old cbcp-next site's About page.
@@ -77,7 +77,7 @@ export default function CBCPArtist() {
             >
               {artist.photoUrl && (
                 <Box sx={{ width: 40, height: 40, borderRadius: '50%', overflow: 'hidden', flexShrink: 0 }}>
-                  <Image src={artist.photoUrl} alt={artist.name} ratio="1/1" />
+                  <Image src={contentfulImage(artist.photoUrl, 600)} alt={artist.name} ratio="1/1" />
                 </Box>
               )}
               <Stack spacing={0}>
@@ -101,7 +101,7 @@ export default function CBCPArtist() {
             sx={{ width: { xs: '80%', sm: '55%', md: '35%' }, flexShrink: 0 }}
           >
             <Box sx={{ borderRadius: 2, overflow: 'hidden' }}>
-              <Image src={artist.photoUrl || '/assets/images/portrait/artist_photo.jpg'} alt={artist.name} ratio="3/4" />
+              <Image src={contentfulImage(artist.photoUrl, 1000) || '/assets/images/portrait/artist_photo.jpg'} alt={artist.name} ratio="3/4" />
             </Box>
           </Box>
         </Stack>
